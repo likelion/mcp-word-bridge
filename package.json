@@ -1,0 +1,50 @@
+{
+  "name": "mcp-word-bridge",
+  "version": "4.0.3",
+  "description": "MCP server for live Word document editing via Office Add-in",
+  "main": "dist/server.js",
+  "bin": {
+    "mcp-word-bridge": "dist/server.js",
+    "mcp-word-bridge-install": "scripts/install-manifest.js"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "start": "node dist/server.cjs",
+    "dev": "node scripts/build.mjs --watch",
+    "test": "vitest run",
+    "test:ci": "vitest run --reporter=default",
+    "test:live": "vitest run --config vitest.live.config.ts",
+    "lint": "eslint src/",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": ["mcp", "word", "office", "add-in", "document", "editing"],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/likelion/mcp-word-bridge.git"
+  },
+  "author": "Leonid Mokrushin <likelion@gmail.com>",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "mathml2omml": "^0.5.0",
+    "temml": "^0.13.3",
+    "ws": "^8.16.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/ws": "^8.5.10",
+    "esbuild": "^0.25.0",
+    "eslint": "^10.4.1",
+    "typescript": "^5.7.0",
+    "typescript-eslint": "^8.0.0",
+    "vitest": "^3.0.0"
+  },
+  "files": [
+    "dist/",
+    "certs/cert.conf",
+    "taskpane.html",
+    "manifest.xml",
+    "scripts/install-manifest.js"
+  ]
+}
