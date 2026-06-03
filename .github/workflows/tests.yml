@@ -1,4 +1,5 @@
 name: Tests
+
 on:
   push:
     branches: [main]
@@ -16,18 +17,32 @@ jobs:
         os: [ubuntu-latest, macos-latest, windows-latest]
         node-version: [22, 24]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: ${{ matrix.node-version }}
+          cache: 'npm'
       - run: npm ci
       - run: npm run build
       - run: npm run typecheck
-      - run: npm test -- --coverage
+      - run: npm test
 
-      - name: Upload coverage
-        if: matrix.os == 'ubuntu-latest' && matrix.node-version == 22
-        uses: codecov/codecov-action@v5
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
-          files: coverage/coverage-final.json
+          node-version: '22'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run build
+      - name: Run tests with coverage
+        run: npx vitest run --coverage
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v6
+        with:
           token: ${{ secrets.CODECOV_TOKEN }}
+          slug: likelion/mcp-word-bridge
+          files: ./coverage/lcov.info
+          fail_ci_if_error: false
