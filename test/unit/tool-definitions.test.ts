@@ -4,8 +4,8 @@ import { buildToolRegistry } from '../../src/server/tools';
 describe('Tool Registry', () => {
   const { tools, handlers } = buildToolRegistry();
 
-  test('declares exactly 92 tools', () => {
-    expect(tools.length).toBe(92);
+  test('declares exactly 91 tools', () => {
+    expect(tools.length).toBe(91);
   });
 
   test('every tool has name, description, and schema', () => {

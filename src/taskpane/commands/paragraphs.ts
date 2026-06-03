@@ -1,12 +1,17 @@
 import type { CommandHandler } from './index';
+import { sanitizeText, checkIndex, checkAlignment, checkStyleExists } from './document';
 
-const ALIGNMENT_MAP: Record<string, string> = { Left: 'Left', Center: 'Centered', Centered: 'Centered', Right: 'Right', Justify: 'Justified', Justified: 'Justified' };
+/** Detect if a paragraph is a TOC entry based on style and text pattern */
+function isTocEntry(style: string, text: string): boolean {
+  return !!(style && style.startsWith('TOC')) || (style === '' && /\t\d+$/.test(text));
+}
 
-/** Validate that a value is a non-negative integer suitable for array indexing */
-function checkIndex(value: number, name: string): void {
-  if (typeof value !== 'number' || !Number.isInteger(value) || value < 0) {
-    throw new Error(`${name} must be a non-negative integer.`);
+/** Infer style from outlineLevel when style is empty (e.g. after TOC generation) */
+function resolveStyle(style: string, outlineLevel: number): string {
+  if (style === '' && outlineLevel >= 1 && outlineLevel <= 9) {
+    return `Heading ${outlineLevel}`;
   }
+  return style;
 }
 
 export const paragraphCommands: Record<string, CommandHandler> = {
@@ -33,8 +38,9 @@ export const paragraphCommands: Record<string, CommandHandler> = {
       if (hasTableInfo) {
         try { inTable = para.parentTableCellOrNullObject && !para.parentTableCellOrNullObject.isNullObject; } catch { inTable = false; }
       }
-      const isTocEntry = !!(para.style && para.style.startsWith('TOC')) || (para.style === '' && /\t\d+$/.test(para.text));
-      items.push({ index: i, text: para.text, style: para.style, alignment: para.alignment, isListItem: para.isListItem, inTable, isTocEntry, outlineLevel: para.outlineLevel });
+      const isToc = isTocEntry(para.style, para.text);
+      const resolvedStyle = resolveStyle(para.style, para.outlineLevel);
+      items.push({ index: i, text: sanitizeText(para.text), style: resolvedStyle, alignment: para.alignment, isListItem: para.isListItem, inTable, isTocEntry: isToc, outlineLevel: para.outlineLevel });
     }
     const result: any = { count: paragraphs.items.length, paragraphs: items };
     if (p.start !== undefined && p.start >= paragraphs.items.length) {
@@ -53,23 +59,14 @@ export const paragraphCommands: Record<string, CommandHandler> = {
     para.load('text,style,alignment,firstLineIndent,leftIndent,rightIndent,lineSpacing,spaceBefore,spaceAfter,outlineLevel,isListItem');
     para.font.load('name,size,bold,italic,color,underline');
     await ctx.sync();
-    return { text: para.text, style: para.style, alignment: para.alignment, firstLineIndent: para.firstLineIndent, leftIndent: para.leftIndent, rightIndent: para.rightIndent, lineSpacing: para.lineSpacing, spaceBefore: para.spaceBefore, spaceAfter: para.spaceAfter, outlineLevel: para.outlineLevel, isListItem: para.isListItem, font: { name: para.font.name, size: para.font.size, bold: para.font.bold, italic: para.font.italic, color: para.font.color, underline: para.font.underline } };
+    return { text: sanitizeText(para.text), style: para.style, alignment: para.alignment, firstLineIndent: para.firstLineIndent, leftIndent: para.leftIndent, rightIndent: para.rightIndent, lineSpacing: para.lineSpacing, spaceBefore: para.spaceBefore, spaceAfter: para.spaceAfter, outlineLevel: para.outlineLevel, isListItem: para.isListItem, font: { name: para.font.name, size: para.font.size, bold: para.font.bold, italic: para.font.italic, color: para.font.color, underline: para.font.underline } };
   },
 
   async insertParagraph(ctx, p) {
     if (p.location && p.location !== 'Start' && p.location !== 'End') throw new Error(`Invalid location: "${p.location}". Valid values: Start, End`);
-    let alignment: string | null = null;
-    if (p.alignment) {
-      alignment = ALIGNMENT_MAP[p.alignment] ?? null;
-      if (!alignment) throw new Error(`Invalid alignment: "${p.alignment}". Valid values: Left, Center, Right, Justified`);
-    }
+    const alignment = checkAlignment(p.alignment);
     const styleName = p.style || 'Normal';
-    if (p.style) {
-      const styleObj = ctx.document.getStyles().getByNameOrNullObject(p.style);
-      styleObj.load('nameLocal');
-      await ctx.sync();
-      if (styleObj.isNullObject) throw new Error(`Style not found: "${p.style}". Use word_get_styles to see available styles.`);
-    }
+    if (p.style) await checkStyleExists(ctx, p.style);
     const para = ctx.document.body.insertParagraph(p.text, p.location || 'End');
     para.style = styleName;
     await ctx.sync();
@@ -94,11 +91,7 @@ export const paragraphCommands: Record<string, CommandHandler> = {
 
   async insertParagraphAtIndex(ctx, p) {
     checkIndex(p.index, 'index');
-    let alignment: string | null = null;
-    if (p.alignment) {
-      alignment = ALIGNMENT_MAP[p.alignment] ?? null;
-      if (!alignment) throw new Error(`Invalid alignment: "${p.alignment}". Valid values: Left, Center, Right, Justified`);
-    }
+    const alignment = checkAlignment(p.alignment);
     const paragraphs = ctx.document.body.paragraphs;
     paragraphs.load('text,parentTableCellOrNullObject');
     await ctx.sync();
@@ -106,12 +99,7 @@ export const paragraphCommands: Record<string, CommandHandler> = {
     let inTable = false;
     try { inTable = paragraphs.items[p.index].parentTableCellOrNullObject && !paragraphs.items[p.index].parentTableCellOrNullObject.isNullObject; } catch { /* ignore */ }
     const styleName = p.style || 'Normal';
-    if (p.style) {
-      const styleObj = ctx.document.getStyles().getByNameOrNullObject(p.style);
-      styleObj.load('nameLocal');
-      await ctx.sync();
-      if (styleObj.isNullObject) throw new Error(`Style not found: "${p.style}". Use word_get_styles to see available styles.`);
-    }
+    if (p.style) await checkStyleExists(ctx, p.style);
     const ref = paragraphs.items[p.index];
     const location = p.location === 'Before' ? 'Before' : 'After';
     const newPara = ref.insertParagraph(p.text, location);
@@ -128,9 +116,13 @@ export const paragraphCommands: Record<string, CommandHandler> = {
   async deleteParagraph(ctx, p) {
     checkIndex(p.index, 'index');
     const paragraphs = ctx.document.body.paragraphs;
-    paragraphs.load('text');
+    paragraphs.load('text,parentTableCellOrNullObject');
     await ctx.sync();
     if (p.index >= paragraphs.items.length) throw new Error(`Paragraph index out of range. Valid indices: 0-${paragraphs.items.length - 1} (document has ${paragraphs.items.length} paragraphs).`);
+    // Guard: reject deletion of table cell paragraphs
+    let inTable = false;
+    try { inTable = paragraphs.items[p.index].parentTableCellOrNullObject && !paragraphs.items[p.index].parentTableCellOrNullObject.isNullObject; } catch { /* ignore */ }
+    if (inTable) throw new Error('Cannot delete a paragraph inside a table cell. Use word_set_table_cell or word_replace_paragraph_text to modify table content.');
     const countBefore = paragraphs.items.length;
     paragraphs.items[p.index].delete();
     try { await ctx.sync(); } catch (e: any) {
@@ -167,22 +159,19 @@ export const paragraphCommands: Record<string, CommandHandler> = {
 
   async setParagraphStyle(ctx, p) {
     checkIndex(p.index, 'index');
-    let alignment: string | null = null;
-    if (p.alignment) {
-      alignment = ALIGNMENT_MAP[p.alignment] ?? null;
-      if (!alignment) throw new Error(`Invalid alignment: "${p.alignment}". Valid values: Left, Center, Right, Justified`);
-    }
+    const alignment = checkAlignment(p.alignment);
     if (!p.style && !p.alignment) throw new Error('At least one of "style" or "alignment" must be provided.');
     const paragraphs = ctx.document.body.paragraphs;
-    paragraphs.load('text');
+    paragraphs.load('text,style,outlineLevel');
     await ctx.sync();
     if (p.index >= paragraphs.items.length) throw new Error(`Paragraph index out of range. Valid indices: 0-${paragraphs.items.length - 1} (document has ${paragraphs.items.length} paragraphs).`);
     const para = paragraphs.items[p.index];
+    // Guard: reject style changes on TOC entry paragraphs
+    if (p.style && isTocEntry(para.style, para.text)) {
+      throw new Error('Cannot change the style of a TOC entry paragraph. Modify the source headings and update the TOC instead.');
+    }
     if (p.style) {
-      const styleObj = ctx.document.getStyles().getByNameOrNullObject(p.style);
-      styleObj.load('nameLocal');
-      await ctx.sync();
-      if (styleObj.isNullObject) throw new Error(`Style not found: "${p.style}". Use word_get_styles to see available styles.`);
+      await checkStyleExists(ctx, p.style);
       para.style = p.style;
       await ctx.sync();
     }

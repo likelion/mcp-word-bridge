@@ -1,13 +1,11 @@
 import type { CommandHandler } from './index';
-import { checkSearchLength } from './document';
+import { checkIndex, checkAnchorText } from './document';
 
 export const footnoteCommands: Record<string, CommandHandler> = {
   async insertFootnote(ctx, p) {
     if (!p.text || typeof p.text !== 'string' || p.text.trim() === '')
       throw new Error('Footnote text must be a non-empty string');
-    if (!p.anchorText || typeof p.anchorText !== 'string' || p.anchorText.trim() === '')
-      throw new Error('anchorText cannot be empty. Provide a non-empty search string.');
-    checkSearchLength(p.anchorText);
+    checkAnchorText(p.anchorText);
     const results = ctx.document.body.search(p.anchorText, { matchCase: p.matchCase || false });
     results.load('text');
     await ctx.sync();
@@ -25,9 +23,7 @@ export const footnoteCommands: Record<string, CommandHandler> = {
   async insertEndnote(ctx, p) {
     if (!p.text || typeof p.text !== 'string' || p.text.trim() === '')
       throw new Error('Endnote text must be a non-empty string');
-    if (!p.anchorText || typeof p.anchorText !== 'string' || p.anchorText.trim() === '')
-      throw new Error('anchorText cannot be empty. Provide a non-empty search string.');
-    checkSearchLength(p.anchorText);
+    checkAnchorText(p.anchorText);
     const results = ctx.document.body.search(p.anchorText, { matchCase: p.matchCase || false });
     results.load('text');
     await ctx.sync();
@@ -73,7 +69,7 @@ export const footnoteCommands: Record<string, CommandHandler> = {
   },
 
   async deleteFootnote(ctx, p) {
-    if (typeof p.index !== 'number' || !Number.isInteger(p.index) || p.index < 0) throw new Error('index must be a non-negative integer.');
+    checkIndex(p.index, 'index');
     const footnotes = ctx.document.body.footnotes;
     footnotes.load('items');
     await ctx.sync();
@@ -85,7 +81,7 @@ export const footnoteCommands: Record<string, CommandHandler> = {
   },
 
   async deleteEndnote(ctx, p) {
-    if (typeof p.index !== 'number' || !Number.isInteger(p.index) || p.index < 0) throw new Error('index must be a non-negative integer.');
+    checkIndex(p.index, 'index');
     const endnotes = ctx.document.body.endnotes;
     endnotes.load('items');
     await ctx.sync();
@@ -97,7 +93,7 @@ export const footnoteCommands: Record<string, CommandHandler> = {
   },
 
   async insertFootnoteAtIndex(ctx, p) {
-    if (typeof p.paragraphIndex !== 'number' || !Number.isInteger(p.paragraphIndex) || p.paragraphIndex < 0) throw new Error('paragraphIndex must be a non-negative integer.');
+    checkIndex(p.paragraphIndex, 'paragraphIndex');
     if (!p.text || typeof p.text !== 'string' || p.text.trim() === '')
       throw new Error('Footnote text must be a non-empty string');
     const paragraphs = ctx.document.body.paragraphs;

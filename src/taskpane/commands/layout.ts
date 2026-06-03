@@ -18,6 +18,11 @@ export const layoutCommands: Record<string, CommandHandler> = {
   },
 
   async setPageLayout(ctx, p) {
+    if (p.orientation !== undefined) {
+      const validOrientations = ['Portrait', 'Landscape'];
+      if (!validOrientations.includes(p.orientation))
+        throw new Error(`Invalid orientation: "${p.orientation}". Valid values: Portrait, Landscape.`);
+    }
     if (p.topMargin !== undefined && p.topMargin < 0) throw new Error('topMargin must be non-negative (in points)');
     if (p.bottomMargin !== undefined && p.bottomMargin < 0) throw new Error('bottomMargin must be non-negative (in points)');
     if (p.leftMargin !== undefined && p.leftMargin < 0) throw new Error('leftMargin must be non-negative (in points)');
@@ -84,6 +89,9 @@ export const layoutCommands: Record<string, CommandHandler> = {
   async insertSectionBreak(ctx, p) {
     const body = ctx.document.body;
     const breakType = p.breakType || 'SectionNext';
+    const validBreakTypes = ['SectionNext', 'SectionContinuous', 'SectionEven', 'SectionOdd'];
+    if (!validBreakTypes.includes(breakType))
+      throw new Error(`Invalid breakType: "${breakType}". Valid values: ${validBreakTypes.join(', ')}.`);
     if (p.paragraphIndex !== undefined) {
       if (typeof p.paragraphIndex !== 'number' || !Number.isInteger(p.paragraphIndex) || p.paragraphIndex < 0) throw new Error('paragraphIndex must be a non-negative integer.');
       const paragraphs = body.paragraphs;

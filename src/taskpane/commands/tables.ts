@@ -1,4 +1,5 @@
 import type { CommandHandler } from './index';
+import { checkHexColor, checkIndex } from './document';
 
 declare const Word: any;
 
@@ -170,15 +171,30 @@ export const tableCommands: Record<string, CommandHandler> = {
   },
 
   async setTableCellShading(ctx, p) {
-    if (!/^#[0-9A-Fa-f]{6}$/.test(p.color)) throw new Error('color must be a valid hex color (e.g. #FFD700)');
+    checkHexColor(p.color, 'color');
+    checkIndex(p.row, 'row');
+    checkIndex(p.col, 'col');
     const tables = ctx.document.body.tables;
-    tables.load('rowCount');
+    tables.load('rowCount,values');
     await ctx.sync();
-    if (p.tableIndex >= tables.items.length) throw new Error('Table index out of range');
-    const cell = tables.items[p.tableIndex].getCell(p.row, p.col);
-    cell.shadingColor = p.color;
-    cell.body.getRange('End').select();
-    await ctx.sync();
+    if (p.tableIndex >= tables.items.length) throw new Error(`Table index out of range. Document has ${tables.items.length} table(s).`);
+    const table = tables.items[p.tableIndex];
+    const rowCount = table.rowCount;
+    const colCount = (table.values && table.values[0]) ? table.values[0].length : 0;
+    if (p.row >= rowCount)
+      throw new Error(`Cell not found at row ${p.row}, col ${p.col}. Table has ${rowCount} row(s) and ${colCount} column(s).`);
+    if (p.col >= colCount)
+      throw new Error(`Cell not found at row ${p.row}, col ${p.col}. Table has ${rowCount} row(s) and ${colCount} column(s).`);
+    try {
+      const cell = table.getCell(p.row, p.col);
+      cell.shadingColor = p.color;
+      cell.body.getRange('End').select();
+      await ctx.sync();
+    } catch (e: any) {
+      if (e.message?.includes('ItemNotFound'))
+        throw new Error(`Cell not found at row ${p.row}, col ${p.col}. Table has ${rowCount} row(s) and ${colCount} column(s). The cell may be part of a merged range.`);
+      throw e;
+    }
     return { success: true };
   },
 };

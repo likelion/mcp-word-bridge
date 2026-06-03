@@ -572,3 +572,201 @@ describe('Batch stops at first failure', () => {
     expect(parsed.results.length).toBe(2);
   });
 });
+
+// =============================================================================
+// move_paragraph rejects table-internal paragraphs
+// =============================================================================
+describe('move_paragraph rejects table-internal paragraphs', () => {
+  const { handlers } = buildToolRegistry();
+  const moveHandler = handlers.get('word_move_paragraph')!;
+
+  function bridgeWithTablePara(): any {
+    return {
+      send: async (action: string) => {
+        if (action === 'getParagraphs') {
+          return {
+            count: 5,
+            paragraphs: [
+              { index: 0, text: 'Normal', style: 'Normal', inTable: false, isTocEntry: false, outlineLevel: 10 },
+              { index: 1, text: 'Cell A', style: 'Normal', inTable: true, isTocEntry: false, outlineLevel: 10 },
+              { index: 2, text: 'Cell B', style: 'Normal', inTable: true, isTocEntry: false, outlineLevel: 10 },
+              { index: 3, text: 'After', style: 'Normal', inTable: false, isTocEntry: false, outlineLevel: 10 },
+              { index: 4, text: 'End', style: 'Normal', inTable: false, isTocEntry: false, outlineLevel: 10 },
+            ],
+          };
+        }
+        return { ooxml: '<pkg:package></pkg:package>' };
+      },
+    };
+  }
+
+  test('rejects moving a paragraph that is inside a table', async () => {
+    await expect(moveHandler({ fromIndex: 1, toIndex: 4 }, bridgeWithTablePara()))
+      .rejects.toThrow('inside a table cell');
+  });
+
+  test('rejects moving a range that includes table paragraphs', async () => {
+    await expect(moveHandler({ fromIndex: 1, toIndex: 4, count: 2 }, bridgeWithTablePara()))
+      .rejects.toThrow('inside a table cell');
+  });
+
+  test('allows moving non-table paragraphs', async () => {
+    const calls: any[] = [];
+    const bridge: any = {
+      send: async (action: string, params: any) => {
+        calls.push({ action, params });
+        if (action === 'getParagraphs') {
+          return {
+            count: 5,
+            paragraphs: [
+              { index: 0, text: 'A', style: 'Normal', inTable: false, isTocEntry: false, outlineLevel: 10 },
+              { index: 1, text: 'B', style: 'Normal', inTable: false, isTocEntry: false, outlineLevel: 10 },
+              { index: 2, text: 'C', style: 'Normal', inTable: false, isTocEntry: false, outlineLevel: 10 },
+              { index: 3, text: 'D', style: 'Normal', inTable: false, isTocEntry: false, outlineLevel: 10 },
+              { index: 4, text: 'E', style: 'Normal', inTable: false, isTocEntry: false, outlineLevel: 10 },
+            ],
+          };
+        }
+        if (action === 'getParaOoxml') return { ooxml: '<pkg:package></pkg:package>' };
+        return { success: true };
+      },
+    };
+    const result = await moveHandler({ fromIndex: 0, toIndex: 4 }, bridge);
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed.success).toBe(true);
+  });
+});
+
+// =============================================================================
+// move_paragraph detects no-op when destination equals source position
+// =============================================================================
+describe('move_paragraph detects no-op', () => {
+  const { handlers } = buildToolRegistry();
+  const moveHandler = handlers.get('word_move_paragraph')!;
+
+  function bridgeWithNParas(n: number): any {
+    const paragraphs = Array.from({ length: n }, (_, i) => ({
+      index: i, text: `P${i}`, style: 'Normal', inTable: false, isTocEntry: false, outlineLevel: 10,
+    }));
+    return {
+      send: async (action: string) => {
+        if (action === 'getParagraphs') return { count: n, paragraphs };
+        return { ooxml: '<pkg:package></pkg:package>' };
+      },
+    };
+  }
+
+  test('returns warning when moving range immediately after itself', async () => {
+    const result = await moveHandler({ fromIndex: 0, toIndex: 3, count: 3 }, bridgeWithNParas(5));
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed.warning).toContain('No move performed');
+    expect(parsed.moved).toBeNull();
+  });
+
+  test('returns warning for single paragraph no-op (fromIndex=0, toIndex=1, After)', async () => {
+    const result = await moveHandler({ fromIndex: 0, toIndex: 1 }, bridgeWithNParas(5));
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed.warning).toContain('No move performed');
+  });
+});
+
+// =============================================================================
+// copy_paragraph handles self-copy by adjusting target index
+// =============================================================================
+describe('copy_paragraph self-copy handling', () => {
+  const { handlers } = buildToolRegistry();
+  const copyHandler = handlers.get('word_copy_paragraph')!;
+
+  test('self-copy adjusts effective target to after source range', async () => {
+    const calls: any[] = [];
+    const bridge: any = {
+      send: async (action: string, params: any) => {
+        calls.push({ action, params });
+        if (action === 'getParagraphs') {
+          return {
+            count: 3,
+            paragraphs: [
+              { index: 0, text: 'A', style: 'Normal', inTable: false, isTocEntry: false, outlineLevel: 10 },
+              { index: 1, text: 'B', style: 'Normal', inTable: false, isTocEntry: false, outlineLevel: 10 },
+              { index: 2, text: 'C', style: 'Normal', inTable: false, isTocEntry: false, outlineLevel: 10 },
+            ],
+          };
+        }
+        if (action === 'getParaOoxml') return { ooxml: '<pkg:package></pkg:package>' };
+        return { success: true };
+      },
+    };
+    const result = await copyHandler({ fromIndex: 0, toIndex: 0 }, bridge);
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed.success).toBe(true);
+    // The insertOoxmlAtIndex call should use index 0 with location 'After'
+    const insertCall = calls.find(c => c.action === 'insertOoxmlAtIndex');
+    expect(insertCall).toBeDefined();
+    expect(insertCall.params.index).toBe(0);
+    expect(insertCall.params.location).toBe('After');
+  });
+
+  test('copy to different index uses original target', async () => {
+    const calls: any[] = [];
+    const bridge: any = {
+      send: async (action: string, params: any) => {
+        calls.push({ action, params });
+        if (action === 'getParagraphs') {
+          return {
+            count: 5,
+            paragraphs: Array.from({ length: 5 }, (_, i) => ({
+              index: i, text: `P${i}`, style: 'Normal', inTable: false, isTocEntry: false, outlineLevel: 10,
+            })),
+          };
+        }
+        if (action === 'getParaOoxml') return { ooxml: '<pkg:package></pkg:package>' };
+        return { success: true };
+      },
+    };
+    await copyHandler({ fromIndex: 0, toIndex: 3 }, bridge);
+    const insertCall = calls.find(c => c.action === 'insertOoxmlAtIndex');
+    expect(insertCall.params.index).toBe(3);
+    expect(insertCall.params.location).toBe('After');
+  });
+
+  test('rejects copy from table-internal paragraphs', async () => {
+    const bridge: any = {
+      send: async (action: string) => {
+        if (action === 'getParagraphs') {
+          return {
+            count: 3,
+            paragraphs: [
+              { index: 0, text: 'Cell', style: 'Normal', inTable: true, isTocEntry: false, outlineLevel: 10 },
+              { index: 1, text: 'Normal', style: 'Normal', inTable: false, isTocEntry: false, outlineLevel: 10 },
+              { index: 2, text: 'End', style: 'Normal', inTable: false, isTocEntry: false, outlineLevel: 10 },
+            ],
+          };
+        }
+        return { ooxml: '<pkg:package></pkg:package>' };
+      },
+    };
+    await expect(copyHandler({ fromIndex: 0, toIndex: 2 }, bridge))
+      .rejects.toThrow('inside a table cell');
+  });
+});
+
+// =============================================================================
+// search tool description documents Word special codes
+// =============================================================================
+describe('search tool description includes special codes note', () => {
+  const { tools } = buildToolRegistry();
+
+  test('word_search description mentions search codes', () => {
+    const searchTool = tools.find(t => t.name === 'word_search');
+    expect(searchTool).toBeDefined();
+    expect(searchTool!.description).toContain('^p');
+    expect(searchTool!.description).toContain('^t');
+    expect(searchTool!.description).toContain('^^');
+  });
+
+  test('word_insert_footnote description warns about insertion order', () => {
+    const fnTool = tools.find(t => t.name === 'word_insert_footnote');
+    expect(fnTool).toBeDefined();
+    expect(fnTool!.description).toContain('reverse');
+  });
+});

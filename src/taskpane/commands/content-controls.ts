@@ -1,5 +1,5 @@
 import type { CommandHandler } from './index';
-import { checkSearchLength } from './document';
+import { checkSearchLength, sanitizeText } from './document';
 
 declare const Word: any;
 
@@ -8,7 +8,7 @@ export const contentControlCommands: Record<string, CommandHandler> = {
     const ccs = ctx.document.body.getContentControls({ types: [Word.ContentControlType.richText, Word.ContentControlType.plainText, Word.ContentControlType.checkBox] });
     ccs.load('id,tag,title,type,text');
     await ctx.sync();
-    return { count: ccs.items.length, controls: ccs.items.map((c: any) => ({ id: c.id, tag: c.tag, title: c.title, type: c.type, text: c.text })) };
+    return { count: ccs.items.length, controls: ccs.items.map((c: any) => ({ id: c.id, tag: c.tag, title: c.title, type: c.type, text: sanitizeText(c.text) })) };
   },
 
   async insertContentControl(ctx, p) {

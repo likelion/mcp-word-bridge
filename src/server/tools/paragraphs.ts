@@ -170,6 +170,22 @@ export const moveParagraph: ToolDefinition = {
     if (fromIndex + count - 1 >= total) throw new ToolError(`fromIndex + count (${fromIndex + count}) exceeds paragraph count (${total}).`);
     checkBounds(toIndex, total, 'toIndex');
 
+    // Reject moves involving table-internal paragraphs
+    for (const para of paraCount.paragraphs) {
+      if (para.index >= fromIndex && para.index < fromIndex + count && para.inTable) {
+        throw new ToolError(`Paragraph ${para.index} is inside a table cell. Use table-specific tools to modify table content.`);
+      }
+    }
+
+    // Detect no-op: moving paragraphs immediately after themselves
+    const adjustedTo = fromIndex < toIndex ? toIndex - count : toIndex;
+    if (toIndex === fromIndex + count && location === 'After') {
+      return jsonResult({ success: true, warning: 'No move performed — destination is equivalent to source position.', moved: null });
+    }
+    if (adjustedTo === fromIndex && location === 'After') {
+      return jsonResult({ success: true, warning: 'No move performed — destination is equivalent to source position.', moved: null });
+    }
+
     // Capture full content via OOXML
     const ooxmlResult = await bridge.send<OoxmlResult>('getParaOoxml', { index: fromIndex, count });
     const savedOoxml = ooxmlResult.ooxml;
@@ -178,9 +194,6 @@ export const moveParagraph: ToolDefinition = {
     for (let i = count - 1; i >= 0; i--) {
       await bridge.send('deleteParagraph', { index: fromIndex + i });
     }
-
-    // Adjust destination after deletions
-    const adjustedTo = fromIndex < toIndex ? toIndex - count : toIndex;
 
     // Insert at destination with restore-on-failure
     try {
@@ -227,8 +240,25 @@ export const copyParagraph: ToolDefinition = {
     if (fromIndex + count - 1 >= total) throw new ToolError(`fromIndex + count (${fromIndex + count}) exceeds paragraph count (${total}).`);
     checkBounds(toIndex, total, 'toIndex');
 
+    // Reject copies from table-internal paragraphs
+    for (const para of paraCount.paragraphs) {
+      if (para.index >= fromIndex && para.index < fromIndex + count && para.inTable) {
+        throw new ToolError(`Paragraph ${para.index} is inside a table cell. Use table-specific tools to modify table content.`);
+      }
+    }
+
     const ooxmlResult = await bridge.send<OoxmlResult>('getParaOoxml', { index: fromIndex, count });
-    await bridge.send('insertOoxmlAtIndex', { ooxml: ooxmlResult.ooxml, index: toIndex, location });
+
+    // When copying to the same position, offset toIndex past the source range
+    // to avoid OOXML insertion inside the source paragraph
+    const effectiveToIndex = (toIndex >= fromIndex && toIndex < fromIndex + count)
+      ? fromIndex + count - 1
+      : toIndex;
+    const effectiveLocation = (toIndex >= fromIndex && toIndex < fromIndex + count)
+      ? 'After'
+      : location;
+
+    await bridge.send('insertOoxmlAtIndex', { ooxml: ooxmlResult.ooxml, index: effectiveToIndex, location: effectiveLocation });
 
     return jsonResult({ success: true, copied: { from: fromIndex, count, to: toIndex, location } });
   },

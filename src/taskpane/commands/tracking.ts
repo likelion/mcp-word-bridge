@@ -1,11 +1,12 @@
 import type { CommandHandler } from './index';
+import { sanitizeText } from './document';
 
 export const trackingCommands: Record<string, CommandHandler> = {
   async getTrackedChanges(ctx) {
     const changes = ctx.document.body.getTrackedChanges();
     changes.load('type,author,date,text');
     await ctx.sync();
-    const items = changes.items.map((c: any, i: number) => ({ index: i, type: c.type, author: c.author, date: c.date, text: c.text }));
+    const items = changes.items.map((c: any, i: number) => ({ index: i, type: c.type, author: c.author, date: c.date, text: sanitizeText(c.text) }));
     return { count: items.length, changes: items };
   },
 

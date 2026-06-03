@@ -1,14 +1,14 @@
 import type { CommandHandler } from './index';
-import { checkSearchLength } from './document';
+import { checkSearchLength, checkOccurrence, checkNonEmptyString, checkHexColor, checkHighlightColor } from './document';
 
 export const formattingCommands: Record<string, CommandHandler> = {
   async formatRange(ctx, p) {
-    if (p.occurrence !== undefined && p.occurrence < 0) throw new Error('occurrence must be non-negative (0-indexed)');
-    if (!p.text || typeof p.text !== 'string' || p.text.trim() === '')
-      throw new Error('text to format cannot be empty. Provide a non-empty search string.');
+    checkOccurrence(p.occurrence);
+    checkNonEmptyString(p.text, 'text');
     if (p.size !== undefined && p.size <= 0) throw new Error('size must be positive');
     if (p.size !== undefined && p.size > 1638) throw new Error('size must not exceed 1638 points (Word maximum)');
-    if (p.color && !/^#[0-9A-Fa-f]{6}$/.test(p.color)) throw new Error('color must be a valid hex color (e.g. #FF0000)');
+    if (p.color) checkHexColor(p.color);
+    if (p.highlightColor) checkHighlightColor(p.highlightColor);
     checkSearchLength(p.text);
     const results = ctx.document.body.search(p.text, { matchCase: p.matchCase || false });
     results.load('font');
@@ -33,9 +33,8 @@ export const formattingCommands: Record<string, CommandHandler> = {
   },
 
   async clearFormatting(ctx, p) {
-    if (p.occurrence !== undefined && p.occurrence < 0) throw new Error('occurrence must be non-negative (0-indexed)');
-    if (!p.text || typeof p.text !== 'string' || p.text.trim() === '')
-      throw new Error('text cannot be empty. Provide a non-empty search string.');
+    checkOccurrence(p.occurrence);
+    checkNonEmptyString(p.text, 'text');
     checkSearchLength(p.text);
     const results = ctx.document.body.search(p.text, { matchCase: p.matchCase || false });
     results.load('font,style');
@@ -65,9 +64,8 @@ export const formattingCommands: Record<string, CommandHandler> = {
   },
 
   async getFontInfo(ctx, p) {
-    if (p.occurrence !== undefined && p.occurrence < 0) throw new Error('occurrence must be non-negative (0-indexed)');
-    if (!p.text || typeof p.text !== 'string' || p.text.trim() === '')
-      throw new Error('text cannot be empty. Provide a non-empty search string.');
+    checkOccurrence(p.occurrence);
+    checkNonEmptyString(p.text, 'text');
     checkSearchLength(p.text);
     const results = ctx.document.body.search(p.text, { matchCase: p.matchCase || false });
     results.load('font');

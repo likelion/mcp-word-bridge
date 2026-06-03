@@ -1,5 +1,5 @@
 import type { CommandHandler } from './index';
-import { checkSearchLength } from './document';
+import { checkSearchLength, sanitizeText, checkOccurrence, checkAnchorText } from './document';
 
 declare const Word: any;
 
@@ -16,7 +16,7 @@ export const searchCommands: Record<string, CommandHandler> = {
         throw new Error('Search query is too long (max ~255 characters). Shorten the query text.');
       throw e;
     }
-    return { count: results.items.length, matches: results.items.slice(0, 30).map((r: any, i: number) => ({ index: i, text: r.text })) };
+    return { count: results.items.length, matches: results.items.slice(0, 30).map((r: any, i: number) => ({ index: i, text: sanitizeText(r.text) })) };
   },
 
   async searchAndReplace(ctx, p) {
@@ -44,7 +44,7 @@ export const searchCommands: Record<string, CommandHandler> = {
 
   async insertText(ctx, p) {
     if (p.after && p.before) throw new Error('Provide only one of "after" or "before", not both.');
-    if (p.occurrence !== undefined && p.occurrence < 0) throw new Error('occurrence must be non-negative (0-indexed)');
+    checkOccurrence(p.occurrence);
     const anchor = p.after || p.before;
     if (!anchor) throw new Error('Either "after" or "before" anchor text must be provided');
     checkSearchLength(anchor);
@@ -69,25 +69,30 @@ export const searchCommands: Record<string, CommandHandler> = {
     sel.font.load('name,size,bold,italic,color,underline,strikeThrough,highlightColor');
     await ctx.sync();
     return {
-      text: sel.text, style: sel.style, isEmpty: sel.isEmpty,
+      text: sanitizeText(sel.text), style: sel.style, isEmpty: sel.isEmpty,
       font: { name: sel.font.name, size: sel.font.size, bold: sel.font.bold, italic: sel.font.italic, color: sel.font.color, underline: sel.font.underline, strikeThrough: sel.font.strikeThrough, highlightColor: sel.font.highlightColor },
     };
   },
 
   async insertTextAtSelection(ctx, p) {
+    if (!p.text && p.text !== 0) {
+      return { success: true, warning: 'Empty text — no content inserted.' };
+    }
+    const textStr = String(p.text);
+    if (textStr === '') {
+      return { success: true, warning: 'Empty text — no content inserted.' };
+    }
     const sel = ctx.document.getSelection();
     const loc = p.replace ? Word.InsertLocation.replace : Word.InsertLocation.end;
-    const inserted = sel.insertText(p.text, loc);
+    const inserted = sel.insertText(textStr, loc);
     inserted.getRange('End').select();
     await ctx.sync();
     return { success: true };
   },
 
   async insertLineBreak(ctx, p) {
-    if (p.occurrence !== undefined && p.occurrence < 0) throw new Error('occurrence must be non-negative (0-indexed)');
-    if (!p.anchorText || typeof p.anchorText !== 'string' || p.anchorText.trim() === '')
-      throw new Error('anchorText cannot be empty. Provide a non-empty search string.');
-    checkSearchLength(p.anchorText);
+    checkOccurrence(p.occurrence);
+    checkAnchorText(p.anchorText);
     const results = ctx.document.body.search(p.anchorText, { matchCase: p.matchCase || false });
     results.load('text');
     await ctx.sync();

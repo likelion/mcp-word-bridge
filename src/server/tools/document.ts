@@ -49,17 +49,6 @@ export const clear = forwardTool(
   'clearDocument',
 );
 
-export const createDocument = forwardTool(
-  'word_create_document',
-  '[Document] Create and open a new blank document in a new Word window. Optionally provide base64-encoded .docx as template.',
-  {
-    properties: {
-      base64: { type: 'string', description: 'Optional base64-encoded .docx file to use as template' },
-    },
-  },
-  'createNewDocument',
-);
-
 export const getWordCount = forwardTool(
   'word_get_word_count',
   '[Document] Get word, character, and paragraph counts.',
@@ -132,7 +121,6 @@ export const documentTools: ToolDefinition[] = [
   setDocumentProperties,
   save,
   clear,
-  createDocument,
   getWordCount,
   getStyles,
   getCoauthors,

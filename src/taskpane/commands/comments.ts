@@ -1,14 +1,11 @@
 import type { CommandHandler } from './index';
-import { checkSearchLength } from './document';
+import { checkOccurrence, checkNonEmptyString, checkAnchorText, sanitizeText } from './document';
 
 export const commentCommands: Record<string, CommandHandler> = {
   async addComment(ctx, p) {
-    if (p.occurrence !== undefined && p.occurrence < 0) throw new Error('occurrence must be non-negative (0-indexed)');
-    if (!p.comment || typeof p.comment !== 'string' || p.comment.trim() === '')
-      throw new Error('comment text must be a non-empty string');
-    if (!p.anchorText || typeof p.anchorText !== 'string' || p.anchorText.trim() === '')
-      throw new Error('anchorText cannot be empty. Provide a non-empty search string.');
-    checkSearchLength(p.anchorText);
+    checkOccurrence(p.occurrence);
+    checkNonEmptyString(p.comment, 'comment');
+    checkAnchorText(p.anchorText);
     const results = ctx.document.body.search(p.anchorText, { matchCase: p.matchCase || false });
     results.load('text');
     await ctx.sync();
@@ -39,7 +36,10 @@ export const commentCommands: Record<string, CommandHandler> = {
       const range = c.getRange();
       range.load('text');
       await ctx.sync();
-      items.push({ id: c.id, author: c.authorName, content: c.content, date: c.creationDate, resolved: c.resolved, anchorText: range.text });
+      // Sanitize: strip control chars and truncate long anchor text
+      const rawText = (range.text || '').replace(/[\u0001-\u0008\u000B\u000C\u000E-\u001F\u0013\u0014\u0015]/g, '');
+      const anchorText = rawText.length > 200 ? rawText.substring(0, 200) + '...' : rawText;
+      items.push({ id: c.id, author: c.authorName, content: c.content, date: c.creationDate, resolved: c.resolved, anchorText });
     }
     return { count: items.length, comments: items };
   },

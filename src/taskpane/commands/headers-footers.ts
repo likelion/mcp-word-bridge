@@ -1,4 +1,5 @@
 import type { CommandHandler } from './index';
+import { sanitizeText } from './document';
 
 declare const Word: any;
 
@@ -16,7 +17,7 @@ export const headerFooterCommands: Record<string, CommandHandler> = {
       : section.getHeader(p.headerType || 'Primary');
     target.load('text');
     await ctx.sync();
-    return { text: target.text };
+    return { text: sanitizeText(target.text) };
   },
 
   async setHeaderFooter(ctx, p) {

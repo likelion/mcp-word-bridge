@@ -1,5 +1,5 @@
 import type { CommandHandler } from './index';
-import { checkSearchLength } from './document';
+import { checkAnchorText } from './document';
 
 declare const Word: any;
 
@@ -9,9 +9,7 @@ export const hyperlinkCommands: Record<string, CommandHandler> = {
       throw new Error('URL must be a valid HTTP or HTTPS URL (e.g. https://example.com)');
     if (/[<>"{}|\\^`]/.test(p.url))
       throw new Error(`Malformed URL: "${p.url}". URL contains invalid characters that must be percent-encoded.`);
-    if (!p.anchorText || typeof p.anchorText !== 'string' || p.anchorText.trim() === '')
-      throw new Error('anchorText cannot be empty. Provide a non-empty search string.');
-    checkSearchLength(p.anchorText);
+    checkAnchorText(p.anchorText);
     const results = ctx.document.body.search(p.anchorText, { matchCase: p.matchCase || false });
     results.load('text,hyperlink');
     await ctx.sync();
@@ -54,9 +52,7 @@ export const hyperlinkCommands: Record<string, CommandHandler> = {
   },
 
   async removeHyperlink(ctx, p) {
-    if (!p.anchorText || typeof p.anchorText !== 'string' || p.anchorText.trim() === '')
-      throw new Error('anchorText cannot be empty. Provide a non-empty search string.');
-    checkSearchLength(p.anchorText);
+    checkAnchorText(p.anchorText);
     const results = ctx.document.body.search(p.anchorText, { matchCase: p.matchCase || false });
     results.load('hyperlink');
     await ctx.sync();
@@ -65,6 +61,9 @@ export const hyperlinkCommands: Record<string, CommandHandler> = {
     if (idx >= results.items.length)
       throw new Error(`Occurrence ${idx} not found (only ${results.items.length} match${results.items.length === 1 ? '' : 'es'})`);
     const target = results.items[idx];
+    if (!target.hyperlink || target.hyperlink === '') {
+      throw new Error(`Text "${p.anchorText}" does not have a hyperlink.`);
+    }
     target.hyperlink = '';
     target.getRange('End').select();
     await ctx.sync();

@@ -1,10 +1,88 @@
 import type { CommandHandler } from './index';
 import { MAX_SEARCH_LENGTH } from '../../shared/constants';
 
+// =============================================================================
+// Shared validation utilities (imported by other command modules)
+// =============================================================================
+
 /** Validate search string length before calling Word API */
 export function checkSearchLength(text: string): void {
   if (text && text.length > MAX_SEARCH_LENGTH) {
     throw new Error('Search text is too long (max ~255 characters). Shorten the text or use a substring.');
+  }
+}
+
+/** Strip Word internal control characters from text before returning to MCP client */
+export function sanitizeText(text: string): string {
+  return text.replace(/[\u0002\u0003\u0005\u0013\u0014\u0015]/g, '');
+}
+
+/** Validate a non-negative integer index parameter */
+export function checkIndex(value: unknown, name: string): asserts value is number {
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 0) {
+    throw new Error(`${name} must be a non-negative integer.`);
+  }
+}
+
+/** Validate a hex color string (e.g. #FF0000) */
+export function checkHexColor(color: string, name: string = 'color'): void {
+  if (!/^#[0-9A-Fa-f]{6}$/.test(color)) {
+    throw new Error(`${name} must be a valid hex color (e.g. #FF0000).`);
+  }
+}
+
+/** Validate occurrence parameter is non-negative */
+export function checkOccurrence(occurrence: unknown): void {
+  if (occurrence !== undefined && (typeof occurrence !== 'number' || occurrence < 0)) {
+    throw new Error('occurrence must be non-negative (0-indexed).');
+  }
+}
+
+/** Validate a required non-empty string parameter */
+export function checkNonEmptyString(value: unknown, name: string): asserts value is string {
+  if (!value || typeof value !== 'string' || value.trim() === '') {
+    throw new Error(`${name} cannot be empty. Provide a non-empty search string.`);
+  }
+}
+
+/** Validate anchor text (non-empty + length check) */
+export function checkAnchorText(value: unknown): asserts value is string {
+  checkNonEmptyString(value, 'anchorText');
+  checkSearchLength(value);
+}
+
+const ALIGNMENT_MAP: Record<string, string> = {
+  left: 'Left', center: 'Centered', centered: 'Centered',
+  right: 'Right', justify: 'Justified', justified: 'Justified',
+};
+
+/** Normalize and validate alignment value. Returns null if undefined. */
+export function checkAlignment(value: string | undefined): string | null {
+  if (!value) return null;
+  const mapped = ALIGNMENT_MAP[value.toLowerCase()];
+  if (!mapped) throw new Error(`Invalid alignment: "${value}". Valid values: Left, Center, Right, Justified.`);
+  return mapped;
+}
+
+/** Validate style exists in the document. Returns once confirmed or throws. */
+export async function checkStyleExists(ctx: any, styleName: string): Promise<void> {
+  const styleObj = ctx.document.getStyles().getByNameOrNullObject(styleName);
+  styleObj.load('nameLocal');
+  await ctx.sync();
+  if (styleObj.isNullObject) {
+    throw new Error(`Style not found: "${styleName}". Use word_get_styles to see available styles.`);
+  }
+}
+
+/** Valid Word highlight color names */
+export const HIGHLIGHT_COLORS = ['Yellow', 'Green', 'Cyan', 'Magenta', 'Blue', 'Red', 'DarkBlue', 'DarkCyan', 'DarkGreen', 'DarkMagenta', 'DarkRed', 'DarkYellow', 'Gray25', 'Gray50', 'Black', 'White', 'NoHighlight'] as const;
+
+/** Validate highlight color (named or hex) */
+export function checkHighlightColor(color: string): void {
+  const isNamed = HIGHLIGHT_COLORS.some(c => c.toLowerCase() === color.toLowerCase());
+  const isHex = /^#[0-9A-Fa-f]{6}$/.test(color);
+  if (!isNamed && !isHex) {
+    throw new Error(`Invalid highlightColor: "${color}". Use a named color (${HIGHLIGHT_COLORS.join(', ')}) or a hex color (e.g. #FFFF00).`);
   }
 }
 
@@ -13,7 +91,7 @@ export const documentCommands: Record<string, CommandHandler> = {
     const body = ctx.document.body;
     body.load('text');
     await ctx.sync();
-    return { text: body.text };
+    return { text: sanitizeText(body.text) };
   },
 
   async getDocumentProperties(ctx) {
@@ -98,21 +176,13 @@ export const documentCommands: Record<string, CommandHandler> = {
     return { success: true };
   },
 
-  async createNewDocument(ctx, p) {
-    const doc = ctx.application.createDocument(p.base64 || null);
-    await ctx.sync();
-    doc.open();
-    await ctx.sync();
-    return { success: true, note: 'New document opened in a separate window.' };
-  },
-
   async getWordCount(ctx) {
     const body = ctx.document.body;
     body.load('text');
     const paragraphs = body.paragraphs;
     paragraphs.load('text');
     await ctx.sync();
-    const text = body.text;
+    const text = sanitizeText(body.text);
     const words = text.split(/\s+/).filter((w: string) => w.length > 0).length;
     return { words, characters: text.length, charactersNoSpaces: text.replace(/\s/g, '').length, paragraphs: paragraphs.items.length };
   },

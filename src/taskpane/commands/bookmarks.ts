@@ -1,5 +1,5 @@
 import type { CommandHandler } from './index';
-import { checkSearchLength } from './document';
+import { sanitizeText, checkOccurrence, checkAnchorText } from './document';
 
 export const bookmarkCommands: Record<string, CommandHandler> = {
   async getBookmarks(ctx) {
@@ -20,14 +20,12 @@ export const bookmarkCommands: Record<string, CommandHandler> = {
   },
 
   async insertBookmark(ctx, p) {
-    if (p.occurrence !== undefined && p.occurrence < 0) throw new Error('occurrence must be non-negative (0-indexed)');
-    if (!p.anchorText || typeof p.anchorText !== 'string' || p.anchorText.trim() === '')
-      throw new Error('anchorText cannot be empty. Provide a non-empty search string.');
+    checkOccurrence(p.occurrence);
+    checkAnchorText(p.anchorText);
     if (!p.name || typeof p.name !== 'string' || p.name.trim() === '')
       throw new Error('Bookmark name must be a non-empty string.');
     if (!/^[A-Za-z_]\w*$/.test(p.name))
       throw new Error(`Invalid bookmark name: "${p.name}". Names must start with a letter or underscore and contain only letters, numbers, and underscores (no spaces).`);
-    checkSearchLength(p.anchorText);
     const results = ctx.document.body.search(p.anchorText, { matchCase: p.matchCase || false });
     results.load('text');
     const range = ctx.document.body.getRange();
@@ -70,7 +68,7 @@ export const bookmarkCommands: Record<string, CommandHandler> = {
         throw new Error('Bookmark not found: ' + p.name);
       throw e;
     }
-    return { success: true, text: range.text };
+    return { success: true, text: sanitizeText(range.text) };
   },
 
   async getBookmarkText(ctx, p) {
@@ -84,6 +82,6 @@ export const bookmarkCommands: Record<string, CommandHandler> = {
         throw new Error('Bookmark not found: ' + p.name);
       throw e;
     }
-    return { text: range.text };
+    return { text: sanitizeText(range.text) };
   },
 };

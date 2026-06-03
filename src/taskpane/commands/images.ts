@@ -4,6 +4,10 @@ export const imageCommands: Record<string, CommandHandler> = {
   async insertImage(ctx, p) {
     if (!p.base64 || typeof p.base64 !== 'string' || p.base64.trim() === '')
       throw new Error('Invalid image data. Ensure the base64 string is a valid PNG, JPEG, or GIF image.');
+    if (p.width !== undefined && (typeof p.width !== 'number' || p.width <= 0))
+      throw new Error('width must be a positive number (in points).');
+    if (p.height !== undefined && (typeof p.height !== 'number' || p.height <= 0))
+      throw new Error('height must be a positive number (in points).');
     const body = ctx.document.body;
     const picture = body.insertInlinePictureFromBase64(p.base64, p.location || 'End');
     if (p.width) picture.width = p.width;

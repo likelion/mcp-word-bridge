@@ -3,7 +3,7 @@ import { forwardTool } from './helpers';
 
 export const insertFootnote = forwardTool(
   'word_insert_footnote',
-  '[Footnotes] Insert a footnote anchored to a text match.',
+  '[Footnotes] Insert a footnote anchored to a text match. Note: multiple footnotes on the same anchor appear in reverse insertion order (most recent first). Use word_insert_footnote_at_index for explicit placement.',
   {
     properties: {
       anchorText: { type: 'string', description: 'Text to search for as anchor point' },

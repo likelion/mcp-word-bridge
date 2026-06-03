@@ -5,7 +5,7 @@ import { checkNoSpecialCodes } from '../validation';
 
 export const search = forwardTool(
   'word_search',
-  '[Search] Find text in the document. Returns match count and up to 30 matches. Query must be ≤255 chars.',
+  '[Search] Find text in the document. Returns match count and up to 30 matches. Query must be ≤255 chars. Note: Word search codes (^p = paragraph mark, ^t = tab) are interpreted. To search for literal "^", use "^^".',
   {
     properties: {
       query: { type: 'string' },

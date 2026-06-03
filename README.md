@@ -70,7 +70,6 @@ Single process. The MCP client spawns the server, which starts both the HTTPS br
 | `word_set_document_properties` | Set metadata fields |
 | `word_save` | Save document to disk |
 | `word_clear` | Clear all document body content |
-| `word_create_document` | Create and open a new blank document in a new Word window |
 | `word_get_word_count` | Get word, character, and paragraph counts |
 | `word_get_styles` | List available styles |
 | `word_get_coauthors` | Get co-authoring status and active authors |
