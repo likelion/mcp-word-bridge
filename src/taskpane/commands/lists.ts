@@ -48,7 +48,7 @@ export const listCommands: Record<string, CommandHandler> = {
   },
 
   async getListInfo(ctx, p) {
-    if (p.index < 0) throw new Error('Index must be non-negative');
+    if (typeof p.index !== 'number' || !Number.isInteger(p.index) || p.index < 0) throw new Error('index must be a non-negative integer.');
     const paragraphs = ctx.document.body.paragraphs;
     paragraphs.load('text,isListItem');
     await ctx.sync();
@@ -65,7 +65,7 @@ export const listCommands: Record<string, CommandHandler> = {
   },
 
   async setListLevel(ctx, p) {
-    if (p.index < 0) throw new Error('Index must be non-negative');
+    if (typeof p.index !== 'number' || !Number.isInteger(p.index) || p.index < 0) throw new Error('index must be a non-negative integer.');
     if (p.level < 0 || p.level > 8) throw new Error('level must be between 0 and 8 (inclusive)');
     const paragraphs = ctx.document.body.paragraphs;
     paragraphs.load('text,isListItem');

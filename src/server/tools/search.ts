@@ -1,5 +1,7 @@
 import type { ToolDefinition } from '../types';
-import { forwardTool } from './helpers';
+import { ToolError } from '../types';
+import { forwardTool, jsonResult } from './helpers';
+import { checkNoSpecialCodes } from '../validation';
 
 export const search = forwardTool(
   'word_search',
@@ -15,10 +17,10 @@ export const search = forwardTool(
   'search',
 );
 
-export const searchAndReplace = forwardTool(
-  'word_search_and_replace',
-  '[Search] Find and replace ALL occurrences. For single-paragraph edits, prefer word_replace_paragraph_text.',
-  {
+export const searchAndReplace: ToolDefinition = {
+  name: 'word_search_and_replace',
+  description: '[Search] Find and replace ALL occurrences. For single-paragraph edits, prefer word_replace_paragraph_text.',
+  schema: {
     properties: {
       find: { type: 'string' },
       replace: { type: 'string' },
@@ -27,8 +29,22 @@ export const searchAndReplace = forwardTool(
     },
     required: ['find', 'replace'],
   },
-  'searchAndReplace',
-);
+  async handler(args, bridge) {
+    const find = args.find as string;
+    const replace = args.replace as string;
+
+    if (!find || typeof find !== 'string' || find.trim() === '') {
+      throw new ToolError('find string cannot be empty.');
+    }
+
+    // BUG-01: Reject Word special codes that can corrupt document structure
+    checkNoSpecialCodes(find, 'find');
+    checkNoSpecialCodes(replace, 'replace');
+
+    const result = await bridge.send('searchAndReplace', args);
+    return jsonResult(result);
+  },
+};
 
 export const insertTextAtMatch = forwardTool(
   'word_insert_text_at_match',

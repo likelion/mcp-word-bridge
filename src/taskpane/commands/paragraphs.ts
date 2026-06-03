@@ -2,10 +2,17 @@ import type { CommandHandler } from './index';
 
 const ALIGNMENT_MAP: Record<string, string> = { Left: 'Left', Center: 'Centered', Centered: 'Centered', Right: 'Right', Justify: 'Justified', Justified: 'Justified' };
 
+/** Validate that a value is a non-negative integer suitable for array indexing */
+function checkIndex(value: number, name: string): void {
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 0) {
+    throw new Error(`${name} must be a non-negative integer.`);
+  }
+}
+
 export const paragraphCommands: Record<string, CommandHandler> = {
   async getParagraphs(ctx, p) {
-    if (p.start !== undefined && p.start < 0) throw new Error('start index must be non-negative');
-    if (p.end !== undefined && p.end < 0) throw new Error('end index must be non-negative');
+    if (p.start !== undefined) { if (typeof p.start !== 'number' || !Number.isInteger(p.start) || p.start < 0) throw new Error('start index must be a non-negative integer'); }
+    if (p.end !== undefined) { if (typeof p.end !== 'number' || !Number.isInteger(p.end) || p.end < 0) throw new Error('end index must be a non-negative integer'); }
     const paragraphs = ctx.document.body.paragraphs;
     let hasTableInfo = true;
     try {
@@ -37,7 +44,7 @@ export const paragraphCommands: Record<string, CommandHandler> = {
   },
 
   async getParagraphByIndex(ctx, p) {
-    if (p.index < 0) throw new Error('Index must be non-negative');
+    checkIndex(p.index, 'index');
     const paragraphs = ctx.document.body.paragraphs;
     paragraphs.load('text');
     await ctx.sync();
@@ -86,7 +93,7 @@ export const paragraphCommands: Record<string, CommandHandler> = {
   },
 
   async insertParagraphAtIndex(ctx, p) {
-    if (p.index < 0) throw new Error('Index must be non-negative');
+    checkIndex(p.index, 'index');
     let alignment: string | null = null;
     if (p.alignment) {
       alignment = ALIGNMENT_MAP[p.alignment] ?? null;
@@ -119,7 +126,7 @@ export const paragraphCommands: Record<string, CommandHandler> = {
   },
 
   async deleteParagraph(ctx, p) {
-    if (p.index < 0) throw new Error('Index must be non-negative');
+    checkIndex(p.index, 'index');
     const paragraphs = ctx.document.body.paragraphs;
     paragraphs.load('text');
     await ctx.sync();
@@ -144,7 +151,7 @@ export const paragraphCommands: Record<string, CommandHandler> = {
   },
 
   async replaceParagraphText(ctx, p) {
-    if (p.index < 0) throw new Error('Index must be non-negative');
+    checkIndex(p.index, 'index');
     const paragraphs = ctx.document.body.paragraphs;
     paragraphs.load('text');
     await ctx.sync();
@@ -159,7 +166,7 @@ export const paragraphCommands: Record<string, CommandHandler> = {
   },
 
   async setParagraphStyle(ctx, p) {
-    if (p.index < 0) throw new Error('Index must be non-negative');
+    checkIndex(p.index, 'index');
     let alignment: string | null = null;
     if (p.alignment) {
       alignment = ALIGNMENT_MAP[p.alignment] ?? null;
@@ -186,10 +193,18 @@ export const paragraphCommands: Record<string, CommandHandler> = {
   },
 
   async setParagraphSpacing(ctx, p) {
-    if (p.index < 0) throw new Error('Index must be non-negative');
+    checkIndex(p.index, 'index');
     if (p.lineSpacing !== undefined && p.lineSpacing <= 0) throw new Error('lineSpacing must be positive');
     if (p.spaceBefore !== undefined && p.spaceBefore < 0) throw new Error('spaceBefore must be non-negative');
     if (p.spaceAfter !== undefined && p.spaceAfter < 0) throw new Error('spaceAfter must be non-negative');
+    // BUG-06: Enforce upper bounds on spacing/indent values (max 1584pt = 22 inches)
+    const MAX_SPACING = 1584;
+    if (p.lineSpacing !== undefined && p.lineSpacing > MAX_SPACING) throw new Error(`lineSpacing value ${p.lineSpacing} exceeds maximum (${MAX_SPACING} points = 22 inches).`);
+    if (p.spaceBefore !== undefined && p.spaceBefore > MAX_SPACING) throw new Error(`spaceBefore value ${p.spaceBefore} exceeds maximum (${MAX_SPACING} points = 22 inches).`);
+    if (p.spaceAfter !== undefined && p.spaceAfter > MAX_SPACING) throw new Error(`spaceAfter value ${p.spaceAfter} exceeds maximum (${MAX_SPACING} points = 22 inches).`);
+    if (p.firstLineIndent !== undefined && p.firstLineIndent > MAX_SPACING) throw new Error(`firstLineIndent value ${p.firstLineIndent} exceeds maximum (${MAX_SPACING} points = 22 inches).`);
+    if (p.leftIndent !== undefined && p.leftIndent > MAX_SPACING) throw new Error(`leftIndent value ${p.leftIndent} exceeds maximum (${MAX_SPACING} points = 22 inches).`);
+    if (p.rightIndent !== undefined && p.rightIndent > MAX_SPACING) throw new Error(`rightIndent value ${p.rightIndent} exceeds maximum (${MAX_SPACING} points = 22 inches).`);
     const paragraphs = ctx.document.body.paragraphs;
     paragraphs.load('text');
     await ctx.sync();

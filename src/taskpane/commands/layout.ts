@@ -57,7 +57,7 @@ export const layoutCommands: Record<string, CommandHandler> = {
   async insertPageBreak(ctx, p) {
     const body = ctx.document.body;
     if (p.paragraphIndex !== undefined) {
-      if (p.paragraphIndex < 0) throw new Error('Index must be non-negative');
+      if (typeof p.paragraphIndex !== 'number' || !Number.isInteger(p.paragraphIndex) || p.paragraphIndex < 0) throw new Error('paragraphIndex must be a non-negative integer.');
       const paragraphs = body.paragraphs;
       paragraphs.load('text');
       await ctx.sync();
@@ -85,7 +85,7 @@ export const layoutCommands: Record<string, CommandHandler> = {
     const body = ctx.document.body;
     const breakType = p.breakType || 'SectionNext';
     if (p.paragraphIndex !== undefined) {
-      if (p.paragraphIndex < 0) throw new Error('Index must be non-negative');
+      if (typeof p.paragraphIndex !== 'number' || !Number.isInteger(p.paragraphIndex) || p.paragraphIndex < 0) throw new Error('paragraphIndex must be a non-negative integer.');
       const paragraphs = body.paragraphs;
       paragraphs.load('text');
       await ctx.sync();

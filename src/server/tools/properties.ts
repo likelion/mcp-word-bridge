@@ -1,5 +1,6 @@
 import type { ToolDefinition } from '../types';
-import { forwardTool } from './helpers';
+import { forwardTool, jsonResult } from './helpers';
+import { checkNonEmpty, checkPropertyKeyLength } from '../validation';
 
 export const getCustomProperties = forwardTool(
   'word_get_custom_properties',
@@ -8,18 +9,26 @@ export const getCustomProperties = forwardTool(
   'getCustomProperties',
 );
 
-export const setCustomProperty = forwardTool(
-  'word_set_custom_property',
-  '[Properties] Set a custom document property. Creates or updates the key-value pair.',
-  {
+export const setCustomProperty: ToolDefinition = {
+  name: 'word_set_custom_property',
+  description: '[Properties] Set a custom document property. Creates or updates the key-value pair.',
+  schema: {
     properties: {
       key: { type: 'string' },
       value: { type: 'string' },
     },
     required: ['key', 'value'],
   },
-  'setCustomProperty',
-);
+  async handler(args, bridge) {
+    const key = args.key as string;
+    checkNonEmpty(key, 'key');
+    // BUG-09: Validate key length to prevent silent truncation
+    checkPropertyKeyLength(key);
+
+    const result = await bridge.send('setCustomProperty', args);
+    return jsonResult(result);
+  },
+};
 
 export const deleteCustomProperty = forwardTool(
   'word_delete_custom_property',

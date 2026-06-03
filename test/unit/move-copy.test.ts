@@ -9,11 +9,19 @@ describe('Move paragraph argument validation', () => {
   const mockBridge: any = { send: async () => ({ count: 5, paragraphs: [] }) };
 
   test('rejects negative fromIndex', async () => {
-    await expect(moveHandler({ fromIndex: -1, toIndex: 2 }, mockBridge)).rejects.toThrow('non-negative');
+    await expect(moveHandler({ fromIndex: -1, toIndex: 2 }, mockBridge)).rejects.toThrow('non-negative integer');
   });
 
   test('rejects negative toIndex', async () => {
-    await expect(moveHandler({ fromIndex: 0, toIndex: -1 }, mockBridge)).rejects.toThrow('non-negative');
+    await expect(moveHandler({ fromIndex: 0, toIndex: -1 }, mockBridge)).rejects.toThrow('non-negative integer');
+  });
+
+  test('rejects float fromIndex', async () => {
+    await expect(moveHandler({ fromIndex: 1.5, toIndex: 4 }, mockBridge)).rejects.toThrow('non-negative integer');
+  });
+
+  test('rejects float toIndex', async () => {
+    await expect(moveHandler({ fromIndex: 0, toIndex: 2.7 }, mockBridge)).rejects.toThrow('non-negative integer');
   });
 
   test('rejects same fromIndex and toIndex', async () => {
@@ -33,7 +41,11 @@ describe('Move paragraph argument validation', () => {
   });
 
   test('copy rejects negative fromIndex', async () => {
-    await expect(copyHandler({ fromIndex: -1, toIndex: 2 }, mockBridge)).rejects.toThrow('non-negative');
+    await expect(copyHandler({ fromIndex: -1, toIndex: 2 }, mockBridge)).rejects.toThrow('non-negative integer');
+  });
+
+  test('copy rejects float fromIndex', async () => {
+    await expect(copyHandler({ fromIndex: 0.5, toIndex: 2 }, mockBridge)).rejects.toThrow('non-negative integer');
   });
 
   test('copy rejects count < 1', async () => {

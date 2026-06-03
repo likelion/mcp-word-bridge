@@ -74,8 +74,8 @@ export const tableCommands: Record<string, CommandHandler> = {
     await ctx.sync();
     if (p.tableIndex >= tables.items.length) throw new Error('Table index out of range');
     const table = tables.items[p.tableIndex];
+    const colCount = table.values[0].length;
     if (p.values && p.values.length > 0) {
-      const colCount = table.values[0].length;
       if (p.values.length > colCount) throw new Error(`values has ${p.values.length} items but table only has ${colCount} columns.`);
     }
     table.addRows(p.location || 'End', 1, p.values ? [p.values] : undefined);
@@ -83,7 +83,12 @@ export const tableCommands: Record<string, CommandHandler> = {
     const tableRange = table.getRange('End');
     tableRange.select();
     await ctx.sync();
-    return { success: true };
+    const result: any = { success: true };
+    // BUG-08: Warn when fewer values than columns are provided
+    if (p.values && p.values.length > 0 && p.values.length < colCount) {
+      result.warning = `Only ${p.values.length} of ${colCount} cells populated. Remaining cells left empty.`;
+    }
+    return result;
   },
 
   async deleteTableRow(ctx, p) {

@@ -12,6 +12,9 @@ export const propertyCommands: Record<string, CommandHandler> = {
   async setCustomProperty(ctx, p) {
     if (!p.key || typeof p.key !== 'string' || p.key.trim() === '')
       throw new Error('key must be a non-empty string');
+    // BUG-09: Validate key length to prevent silent truncation
+    if (p.key.length > 255)
+      throw new Error(`key must be 255 characters or fewer (got ${p.key.length}).`);
     if (p.value === undefined || p.value === null || (typeof p.value === 'string' && p.value.trim() === ''))
       throw new Error('value must be a non-empty string');
     ctx.document.properties.customProperties.add(p.key, p.value);

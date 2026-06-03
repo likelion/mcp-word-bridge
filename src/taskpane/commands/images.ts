@@ -33,7 +33,7 @@ export const imageCommands: Record<string, CommandHandler> = {
   },
 
   async deleteImage(ctx, p) {
-    if (p.index < 0) throw new Error('Index must be non-negative');
+    if (typeof p.index !== 'number' || !Number.isInteger(p.index) || p.index < 0) throw new Error('index must be a non-negative integer.');
     const pics = ctx.document.body.inlinePictures;
     pics.load('altTextDescription');
     await ctx.sync();

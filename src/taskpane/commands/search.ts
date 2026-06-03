@@ -23,6 +23,12 @@ export const searchCommands: Record<string, CommandHandler> = {
     if (!p.find || typeof p.find !== 'string' || p.find.trim() === '')
       throw new Error('find string cannot be empty. Provide a non-empty search string.');
     checkSearchLength(p.find);
+    // BUG-01: Reject Word special codes that can corrupt document structure
+    const specialCodePattern = /\^(p|w|t|l|m|b|n|s|d|a|e|f|g|v|~|\^|\-|13|11|14|12|07|09)/;
+    const findMatch = (p.find as string).match(specialCodePattern);
+    if (findMatch) throw new Error(`find contains Word special code "${findMatch[0]}" which can corrupt document structure. Use literal text only. Common special codes: ^p (paragraph mark), ^t (tab), ^w (whitespace), ^13 (paragraph mark).`);
+    const replaceMatch = (p.replace as string).match(specialCodePattern);
+    if (replaceMatch) throw new Error(`replace contains Word special code "${replaceMatch[0]}" which can corrupt document structure. Use literal text only.`);
     const results = ctx.document.body.search(p.find, { matchCase: p.matchCase || false, matchWholeWord: p.matchWholeWord || false });
     results.load('text');
     await ctx.sync();

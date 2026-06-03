@@ -1,7 +1,7 @@
 import type { ToolDefinition } from '../types';
 import { ToolError } from '../types';
 import { forwardTool, jsonResult } from './helpers';
-import { checkNonNegative, checkBounds } from '../validation';
+import { checkNonNegative, checkBounds, checkSpacingBounds } from '../validation';
 import type { GetParagraphsResult, OoxmlResult } from '../../shared/protocol';
 
 export const getParagraphs = forwardTool(
@@ -98,10 +98,10 @@ export const setParagraphStyle = forwardTool(
   'setParagraphStyle',
 );
 
-export const setParagraphSpacing = forwardTool(
-  'word_set_paragraph_spacing',
-  '[Paragraphs] Set line spacing, before/after spacing, and indentation on a paragraph by index.',
-  {
+export const setParagraphSpacing: ToolDefinition = {
+  name: 'word_set_paragraph_spacing',
+  description: '[Paragraphs] Set line spacing, before/after spacing, and indentation on a paragraph by index.',
+  schema: {
     properties: {
       index: { type: 'number', description: 'Paragraph index (0-based)' },
       lineSpacing: { type: 'number', description: 'Line spacing in points' },
@@ -113,8 +113,29 @@ export const setParagraphSpacing = forwardTool(
     },
     required: ['index'],
   },
-  'setParagraphSpacing',
-);
+  async handler(args, bridge) {
+    const index = args.index as number;
+    checkNonNegative(index, 'index');
+
+    // BUG-06: Validate upper bounds on all spacing/indent values
+    const spacingFields: Array<[string, unknown]> = [
+      ['lineSpacing', args.lineSpacing],
+      ['spaceBefore', args.spaceBefore],
+      ['spaceAfter', args.spaceAfter],
+      ['firstLineIndent', args.firstLineIndent],
+      ['leftIndent', args.leftIndent],
+      ['rightIndent', args.rightIndent],
+    ];
+    for (const [name, value] of spacingFields) {
+      if (value !== undefined && typeof value === 'number') {
+        checkSpacingBounds(value, name);
+      }
+    }
+
+    const result = await bridge.send('setParagraphSpacing', args);
+    return jsonResult(result);
+  },
+};
 
 export const moveParagraph: ToolDefinition = {
   name: 'word_move_paragraph',
@@ -136,6 +157,7 @@ export const moveParagraph: ToolDefinition = {
 
     checkNonNegative(fromIndex, 'fromIndex');
     checkNonNegative(toIndex, 'toIndex');
+    if (!Number.isInteger(count)) throw new ToolError('count must be an integer.');
     if (count < 1) throw new ToolError('count must be at least 1');
     if (fromIndex === toIndex && count === 1) throw new ToolError('fromIndex and toIndex must be different');
     if (toIndex >= fromIndex && toIndex < fromIndex + count) {
@@ -196,6 +218,7 @@ export const copyParagraph: ToolDefinition = {
 
     checkNonNegative(fromIndex, 'fromIndex');
     checkNonNegative(toIndex, 'toIndex');
+    if (!Number.isInteger(count)) throw new ToolError('count must be an integer.');
     if (count < 1) throw new ToolError('count must be at least 1');
 
     const paraCount = await bridge.send<GetParagraphsResult>('getParagraphs', {});

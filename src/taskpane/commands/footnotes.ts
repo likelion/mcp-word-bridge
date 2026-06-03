@@ -73,7 +73,7 @@ export const footnoteCommands: Record<string, CommandHandler> = {
   },
 
   async deleteFootnote(ctx, p) {
-    if (p.index < 0) throw new Error('Index must be non-negative');
+    if (typeof p.index !== 'number' || !Number.isInteger(p.index) || p.index < 0) throw new Error('index must be a non-negative integer.');
     const footnotes = ctx.document.body.footnotes;
     footnotes.load('items');
     await ctx.sync();
@@ -85,7 +85,7 @@ export const footnoteCommands: Record<string, CommandHandler> = {
   },
 
   async deleteEndnote(ctx, p) {
-    if (p.index < 0) throw new Error('Index must be non-negative');
+    if (typeof p.index !== 'number' || !Number.isInteger(p.index) || p.index < 0) throw new Error('index must be a non-negative integer.');
     const endnotes = ctx.document.body.endnotes;
     endnotes.load('items');
     await ctx.sync();
@@ -97,7 +97,9 @@ export const footnoteCommands: Record<string, CommandHandler> = {
   },
 
   async insertFootnoteAtIndex(ctx, p) {
-    if (p.paragraphIndex < 0) throw new Error('Index must be non-negative');
+    if (typeof p.paragraphIndex !== 'number' || !Number.isInteger(p.paragraphIndex) || p.paragraphIndex < 0) throw new Error('paragraphIndex must be a non-negative integer.');
+    if (!p.text || typeof p.text !== 'string' || p.text.trim() === '')
+      throw new Error('Footnote text must be a non-empty string');
     const paragraphs = ctx.document.body.paragraphs;
     paragraphs.load('text');
     await ctx.sync();

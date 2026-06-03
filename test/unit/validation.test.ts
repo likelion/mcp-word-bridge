@@ -42,13 +42,31 @@ describe('checkNonEmpty', () => {
 });
 
 describe('checkNonNegative', () => {
-  test('accepts zero and positive', () => {
+  test('accepts zero and positive integers', () => {
     expect(() => checkNonNegative(0, 'idx')).not.toThrow();
     expect(() => checkNonNegative(5, 'idx')).not.toThrow();
+    expect(() => checkNonNegative(100, 'idx')).not.toThrow();
   });
 
   test('rejects negative', () => {
-    expect(() => checkNonNegative(-1, 'idx')).toThrow('non-negative');
+    expect(() => checkNonNegative(-1, 'idx')).toThrow('non-negative integer');
+  });
+
+  test('rejects float values', () => {
+    expect(() => checkNonNegative(1.5, 'idx')).toThrow('non-negative integer');
+    expect(() => checkNonNegative(0.1, 'idx')).toThrow('non-negative integer');
+    expect(() => checkNonNegative(1.999, 'idx')).toThrow('non-negative integer');
+  });
+
+  test('rejects NaN and Infinity', () => {
+    expect(() => checkNonNegative(NaN, 'idx')).toThrow('non-negative integer');
+    expect(() => checkNonNegative(Infinity, 'idx')).toThrow('non-negative integer');
+  });
+
+  test('rejects non-number types', () => {
+    expect(() => checkNonNegative('5' as any, 'idx')).toThrow('non-negative integer');
+    expect(() => checkNonNegative(null as any, 'idx')).toThrow('non-negative integer');
+    expect(() => checkNonNegative(undefined as any, 'idx')).toThrow('non-negative integer');
   });
 });
 
@@ -83,13 +101,19 @@ describe('checkOccurrence', () => {
 });
 
 describe('normalizeAlignment', () => {
-  test('normalizes aliases', () => {
+  test('normalizes aliases (case-insensitive)', () => {
     expect(normalizeAlignment('Left')).toBe('Left');
+    expect(normalizeAlignment('left')).toBe('Left');
+    expect(normalizeAlignment('LEFT')).toBe('Left');
     expect(normalizeAlignment('Center')).toBe('Centered');
+    expect(normalizeAlignment('center')).toBe('Centered');
     expect(normalizeAlignment('Centered')).toBe('Centered');
     expect(normalizeAlignment('Right')).toBe('Right');
+    expect(normalizeAlignment('right')).toBe('Right');
     expect(normalizeAlignment('Justify')).toBe('Justified');
+    expect(normalizeAlignment('justify')).toBe('Justified');
     expect(normalizeAlignment('Justified')).toBe('Justified');
+    expect(normalizeAlignment('JUSTIFIED')).toBe('Justified');
   });
 
   test('returns null for undefined', () => {
@@ -98,6 +122,7 @@ describe('normalizeAlignment', () => {
 
   test('rejects invalid values', () => {
     expect(() => normalizeAlignment('Middle')).toThrow('Invalid alignment');
+    expect(() => normalizeAlignment('diagonal')).toThrow('Invalid alignment');
   });
 });
 

@@ -13,17 +13,23 @@ export const hyperlinkCommands: Record<string, CommandHandler> = {
       throw new Error('anchorText cannot be empty. Provide a non-empty search string.');
     checkSearchLength(p.anchorText);
     const results = ctx.document.body.search(p.anchorText, { matchCase: p.matchCase || false });
-    results.load('text');
+    results.load('text,hyperlink');
     await ctx.sync();
     if (results.items.length === 0) throw new Error('Anchor not found: ' + p.anchorText);
     const idx = p.occurrence || 0;
     if (idx >= results.items.length)
       throw new Error(`Occurrence ${idx} not found (only ${results.items.length} match${results.items.length === 1 ? '' : 'es'})`);
     const target = results.items[idx];
+    // BUG-14: Warn if the text already has a hyperlink
+    const existingHyperlink = target.hyperlink;
     target.hyperlink = p.url;
     target.getRange('End').select();
     await ctx.sync();
-    return { success: true };
+    const result: any = { success: true };
+    if (existingHyperlink) {
+      result.warning = `Replaced existing hyperlink "${existingHyperlink}" with "${p.url}".`;
+    }
+    return result;
   },
 
   async getHyperlinks(ctx) {
