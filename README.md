@@ -1,5 +1,8 @@
 # MCP Word Bridge
 
+[![Tests](https://github.com/likelion/mcp-word-bridge/actions/workflows/tests.yml/badge.svg)](https://github.com/likelion/mcp-word-bridge/actions/workflows/tests.yml)
+[![codecov](https://codecov.io/gh/likelion/mcp-word-bridge/branch/main/graph/badge.svg)](https://codecov.io/gh/likelion/mcp-word-bridge)
+
 MCP server for live Word document editing via Office Add-in. Enables programmatic editing of Word documents through the Word JavaScript API, with changes appearing as user edits in co-authoring sessions.
 
 ## Quick Start
