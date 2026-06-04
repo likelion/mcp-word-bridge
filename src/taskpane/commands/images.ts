@@ -8,6 +8,10 @@ export const imageCommands: Record<string, CommandHandler> = {
       throw new Error('width must be a positive number (in points).');
     if (p.height !== undefined && (typeof p.height !== 'number' || p.height <= 0))
       throw new Error('height must be a positive number (in points).');
+    if (p.width !== undefined && p.width > 1584)
+      throw new Error('width must not exceed 1584 points (22 inches, Word maximum page dimension).');
+    if (p.height !== undefined && p.height > 1584)
+      throw new Error('height must not exceed 1584 points (22 inches, Word maximum page dimension).');
     const body = ctx.document.body;
     const picture = body.insertInlinePictureFromBase64(p.base64, p.location || 'End');
     if (p.width) picture.width = p.width;

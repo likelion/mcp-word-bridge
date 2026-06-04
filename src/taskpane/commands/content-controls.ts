@@ -31,7 +31,21 @@ export const contentControlCommands: Record<string, CommandHandler> = {
     }
     const cc = range.insertContentControl(ccType);
     if (p.title) cc.title = p.title;
-    if (p.tag) cc.tag = p.tag;
+    if (p.tag) {
+      // Check for duplicate tag and warn
+      const existingCcs = ctx.document.body.getContentControls({ types: [Word.ContentControlType.richText, Word.ContentControlType.plainText, Word.ContentControlType.checkBox] });
+      existingCcs.load('tag');
+      await ctx.sync();
+      const duplicateCount = existingCcs.items.filter((c: any) => c.tag === p.tag).length;
+      cc.tag = p.tag;
+      if (duplicateCount > 0) {
+        const result: any = { success: true, warning: `Another content control already uses tag "${p.tag}". Duplicate tags prevent tag-based lookups — use word_set_content_control_text with "id" instead.` };
+        if (p.color) cc.color = p.color;
+        cc.getRange('End').select();
+        await ctx.sync();
+        return result;
+      }
+    }
     if (p.color) cc.color = p.color;
     cc.getRange('End').select();
     await ctx.sync();

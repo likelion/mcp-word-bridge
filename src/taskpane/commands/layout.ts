@@ -27,6 +27,10 @@ export const layoutCommands: Record<string, CommandHandler> = {
     if (p.bottomMargin !== undefined && p.bottomMargin < 0) throw new Error('bottomMargin must be non-negative (in points)');
     if (p.leftMargin !== undefined && p.leftMargin < 0) throw new Error('leftMargin must be non-negative (in points)');
     if (p.rightMargin !== undefined && p.rightMargin < 0) throw new Error('rightMargin must be non-negative (in points)');
+    if (p.topMargin !== undefined && p.topMargin > 1584) throw new Error('topMargin must not exceed 1584 points (22 inches)');
+    if (p.bottomMargin !== undefined && p.bottomMargin > 1584) throw new Error('bottomMargin must not exceed 1584 points (22 inches)');
+    if (p.leftMargin !== undefined && p.leftMargin > 1584) throw new Error('leftMargin must not exceed 1584 points (22 inches)');
+    if (p.rightMargin !== undefined && p.rightMargin > 1584) throw new Error('rightMargin must not exceed 1584 points (22 inches)');
     const sections = ctx.document.sections;
     sections.load('items');
     await ctx.sync();
@@ -149,7 +153,7 @@ export const layoutCommands: Record<string, CommandHandler> = {
           }
         }
       }
-      pageDetails.push({ pageIndex: page.index, height: page.height, width: page.width, paragraphCount: paras.items.length, firstParagraphIndex: firstIdx, lastParagraphIndex: lastIdx });
+      pageDetails.push({ pageNumber: page.index, height: page.height, width: page.width, paragraphCount: paras.items.length, firstParagraphIndex: firstIdx, lastParagraphIndex: lastIdx });
     }
     return { pageCount: pages.items.length, pages: pageDetails };
   },

@@ -45,7 +45,7 @@ export const setContentControlText: ToolDefinition = {
       throw new ToolError('Provide "id" or "tag" to identify the content control. Use word_get_content_controls to list available controls.');
     }
 
-    // BUG-03: Check for duplicate tags before forwarding
+    // Check for duplicate tags before forwarding
     if (tag) {
       const ccResult = await bridge.send<{ count: number; controls: Array<{ id: number; tag: string }> }>('getContentControls', {});
       const matches = ccResult.controls.filter(c => c.tag === tag);

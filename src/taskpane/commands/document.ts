@@ -77,12 +77,17 @@ export async function checkStyleExists(ctx: any, styleName: string): Promise<voi
 /** Valid Word highlight color names */
 export const HIGHLIGHT_COLORS = ['Yellow', 'Green', 'Cyan', 'Magenta', 'Blue', 'Red', 'DarkBlue', 'DarkCyan', 'DarkGreen', 'DarkMagenta', 'DarkRed', 'DarkYellow', 'Gray25', 'Gray50', 'Black', 'White', 'NoHighlight'] as const;
 
-/** Validate highlight color (named or hex) */
+/** Validate highlight color — only named Word highlight colors are supported.
+ *  Word silently snaps arbitrary hex values to the nearest named color, which
+ *  is misleading. Reject hex to prevent silent color mismatch. */
 export function checkHighlightColor(color: string): void {
   const isNamed = HIGHLIGHT_COLORS.some(c => c.toLowerCase() === color.toLowerCase());
-  const isHex = /^#[0-9A-Fa-f]{6}$/.test(color);
-  if (!isNamed && !isHex) {
-    throw new Error(`Invalid highlightColor: "${color}". Use a named color (${HIGHLIGHT_COLORS.join(', ')}) or a hex color (e.g. #FFFF00).`);
+  if (!isNamed) {
+    throw new Error(
+      `Invalid highlightColor: "${color}". Word highlight only supports named colors: ${HIGHLIGHT_COLORS.join(', ')}. ` +
+      `Arbitrary hex values are not supported (Word silently maps them to the nearest named color). ` +
+      `For arbitrary colors, use the "color" property instead (which sets font color, not highlight).`,
+    );
   }
 }
 

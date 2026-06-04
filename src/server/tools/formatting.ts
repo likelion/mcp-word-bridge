@@ -13,7 +13,7 @@ export const formatText = forwardTool(
       underline: { type: 'boolean' },
       strikeThrough: { type: 'boolean' },
       color: { type: 'string', description: 'Hex color e.g. #FF0000' },
-      highlightColor: { type: 'string', description: 'Highlight color name or hex' },
+      highlightColor: { type: 'string', description: 'Highlight color name (Yellow, Green, Cyan, Magenta, Blue, Red, DarkBlue, DarkCyan, DarkGreen, DarkMagenta, DarkRed, DarkYellow, Gray25, Gray50, Black, White, NoHighlight)' },
       size: { type: 'number', description: 'Font size in points (1-1638)' },
       name: { type: 'string', description: 'Font name' },
       matchCase: { type: 'boolean', description: 'Default: false' },

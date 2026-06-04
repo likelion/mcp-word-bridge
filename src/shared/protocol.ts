@@ -34,6 +34,7 @@ export interface ParagraphInfo {
 }
 
 export interface GetParagraphsResult {
+  total: number;
   count: number;
   paragraphs: ParagraphInfo[];
   warning?: string;

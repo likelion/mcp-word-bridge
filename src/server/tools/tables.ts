@@ -11,7 +11,7 @@ export const insertTable = forwardTool(
       data: { type: 'array', items: { type: 'array', items: { type: 'string' } }, description: 'Cell values as array of row arrays' },
       location: { type: 'string', enum: ['Start', 'End'] },
       style: { type: 'string', description: 'Table style name' },
-      headerRowCount: { type: 'number' },
+      headerRowCount: { type: 'number', description: 'Number of header rows (default: 0). Set to 1 to mark the first row as a repeating header.' },
     },
     required: ['rows', 'cols'],
   },

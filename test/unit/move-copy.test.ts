@@ -6,7 +6,7 @@ describe('Move paragraph argument validation', () => {
   const moveHandler = handlers.get('word_move_paragraph')!;
   const copyHandler = handlers.get('word_copy_paragraph')!;
 
-  const mockBridge: any = { send: async () => ({ count: 5, paragraphs: [] }) };
+  const mockBridge: any = { send: async () => ({ total: 5, count: 5, paragraphs: [] }) };
 
   test('rejects negative fromIndex', async () => {
     await expect(moveHandler({ fromIndex: -1, toIndex: 2 }, mockBridge)).rejects.toThrow('non-negative integer');

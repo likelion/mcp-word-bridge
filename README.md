@@ -289,6 +289,19 @@ src/
     └── equations.ts  # LaTeX→OMML conversion pipeline
 ```
 
+## Known Limitations
+
+Platform constraints in the Word JavaScript API that cannot be resolved in this project:
+
+| Area | Limitation | Upstream Issue |
+|------|------------|----------------|
+| Tracked Changes | `word_get_tracked_changes` returns empty `text` for deletions. The `Word.TrackedChange.text` property returns `""` when `type` is `"Deleted"`. Only additions and formatting changes include text content. | [office-js#5188](https://github.com/OfficeDev/office-js/issues/5188) |
+| Tracked Changes | `getTrackedChanges()` throws if the document contains "moved" tracked changes (drag-and-drop reorders). These produce paired "moved from"/"moved to" entries that the API cannot handle. | [office-js#5535](https://github.com/OfficeDev/office-js/issues/5535) |
+| Highlight Colors | `highlightColor` only supports 17 named colors (Yellow, Green, Cyan, Magenta, Blue, Red, DarkBlue, DarkCyan, DarkGreen, DarkMagenta, DarkRed, DarkYellow, Gray25, Gray50, Black, White, NoHighlight). The Word API documentation claims `#RRGGBB` is accepted, but Desktop silently maps hex values to the nearest named color. This tool rejects hex to prevent silent mismatch — use `color` for arbitrary RGB. | [office-js#4638](https://github.com/OfficeDev/office-js/issues/4638) |
+| Paragraph Style | TOC field entries and certain table paragraphs return `style: ""` (empty string) instead of the actual style name. Paragraphs are flagged with `isTocEntry: true` when detected as TOC entries. Use this flag rather than the style field for identification. | [office-js#5934](https://github.com/OfficeDev/office-js/issues/5934) |
+| Page Info | `word_get_page_info` requires WordApiDesktop 1.2+ (Word for Windows/Mac desktop). Not available on Word for the web. |  |
+| Undo | The Word JavaScript API does not expose a programmatic `undo()` method. Changes made by the add-in appear in Word's undo stack (Ctrl+Z works for the user), but there is no way to trigger undo from code. |  |
+
 ## License
 
 MIT

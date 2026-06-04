@@ -3,6 +3,7 @@ import { CallToolRequestSchema, ListToolsRequestSchema, ListResourcesRequestSche
 import type { Bridge } from './bridge';
 import { buildToolRegistry } from './tools';
 import { ToolError } from './types';
+import { createMutex } from './mutex';
 import { usageGuide } from './usage-guide';
 
 // Read version from package.json at build time (inlined by esbuild)
@@ -15,6 +16,10 @@ export function createMcpServer(bridge: Bridge): Server {
   );
 
   const { tools, handlers } = buildToolRegistry();
+
+  // Serialize tool calls so concurrent MCP requests execute one at a time.
+  // This prevents race conditions when multiple tools modify the document.
+  const toolMutex = createMutex();
 
   // List tools
   server.setRequestHandler(ListToolsRequestSchema, async () => ({
@@ -29,20 +34,22 @@ export function createMcpServer(bridge: Bridge): Server {
     })),
   }));
 
-  // Call tool
+  // Call tool — serialized via mutex to guarantee ordering
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
-    const { name, arguments: args } = request.params;
-    const handler = handlers.get(name);
-    if (!handler) {
-      return { content: [{ type: 'text' as const, text: 'Unknown tool: ' + name }], isError: true };
-    }
-    try {
-      const result = await handler(args || {}, bridge);
-      return result as any;
-    } catch (e) {
-      const msg = e instanceof ToolError ? e.message : 'Error: ' + (e as Error).message;
-      return { content: [{ type: 'text' as const, text: msg }], isError: true };
-    }
+    return toolMutex.run(async () => {
+      const { name, arguments: args } = request.params;
+      const handler = handlers.get(name);
+      if (!handler) {
+        return { content: [{ type: 'text' as const, text: 'Unknown tool: ' + name }], isError: true };
+      }
+      try {
+        const result = await handler(args || {}, bridge);
+        return result as any;
+      } catch (e) {
+        const msg = e instanceof ToolError ? e.message : 'Error: ' + (e as Error).message;
+        return { content: [{ type: 'text' as const, text: msg }], isError: true };
+      }
+    });
   });
 
   // Resources — usage guide

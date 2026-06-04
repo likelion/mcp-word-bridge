@@ -1,7 +1,7 @@
 import type { ToolDefinition } from '../types';
 import { ToolError } from '../types';
 import { forwardTool, jsonResult } from './helpers';
-import { checkNonNegative, checkBounds, checkSpacingBounds } from '../validation';
+import { checkNonNegative, checkBounds, checkSpacingBounds, checkIndentBounds } from '../validation';
 import type { GetParagraphsResult, OoxmlResult } from '../../shared/protocol';
 
 export const getParagraphs = forwardTool(
@@ -61,7 +61,7 @@ export const insertParagraphAtIndex = forwardTool(
 
 export const deleteParagraph = forwardTool(
   'word_delete_paragraph',
-  '[Paragraphs] Delete a paragraph by its 0-based index.',
+  '[Paragraphs] Delete a paragraph by its 0-based index. For table cells with multiple paragraphs, extra paragraphs can be removed (the last paragraph in a cell cannot be deleted).',
   {
     properties: {
       index: { type: 'number', description: 'Paragraph index (0-based)' },
@@ -117,18 +117,26 @@ export const setParagraphSpacing: ToolDefinition = {
     const index = args.index as number;
     checkNonNegative(index, 'index');
 
-    // BUG-06: Validate upper bounds on all spacing/indent values
+    // Validate bounds on spacing and indent values
     const spacingFields: Array<[string, unknown]> = [
       ['lineSpacing', args.lineSpacing],
       ['spaceBefore', args.spaceBefore],
       ['spaceAfter', args.spaceAfter],
-      ['firstLineIndent', args.firstLineIndent],
-      ['leftIndent', args.leftIndent],
-      ['rightIndent', args.rightIndent],
     ];
     for (const [name, value] of spacingFields) {
       if (value !== undefined && typeof value === 'number') {
         checkSpacingBounds(value, name);
+      }
+    }
+
+    const indentFields: Array<[string, unknown]> = [
+      ['firstLineIndent', args.firstLineIndent],
+      ['leftIndent', args.leftIndent],
+      ['rightIndent', args.rightIndent],
+    ];
+    for (const [name, value] of indentFields) {
+      if (value !== undefined && typeof value === 'number') {
+        checkIndentBounds(value, name);
       }
     }
 
@@ -165,7 +173,7 @@ export const moveParagraph: ToolDefinition = {
     }
 
     const paraCount = await bridge.send<GetParagraphsResult>('getParagraphs', {});
-    const total = paraCount.count;
+    const total = paraCount.total;
     checkBounds(fromIndex, total, 'fromIndex');
     if (fromIndex + count - 1 >= total) throw new ToolError(`fromIndex + count (${fromIndex + count}) exceeds paragraph count (${total}).`);
     checkBounds(toIndex, total, 'toIndex');
@@ -174,6 +182,17 @@ export const moveParagraph: ToolDefinition = {
     for (const para of paraCount.paragraphs) {
       if (para.index >= fromIndex && para.index < fromIndex + count && para.inTable) {
         throw new ToolError(`Paragraph ${para.index} is inside a table cell. Use table-specific tools to modify table content.`);
+      }
+    }
+
+    // Reject move of the mandatory trailing paragraph (Word auto-recreates it, causing duplication)
+    const lastIdx = total - 1;
+    if (fromIndex + count - 1 === lastIdx) {
+      const lastPara = paraCount.paragraphs.find(p => p.index === lastIdx);
+      if (lastPara && lastPara.text === '') {
+        throw new ToolError(
+          `Cannot move the last paragraph (index ${lastIdx}) — Word requires at least one paragraph and will auto-create a replacement, resulting in duplication. Use word_copy_paragraph instead, or exclude the trailing paragraph from the range.`,
+        );
       }
     }
 
@@ -235,7 +254,7 @@ export const copyParagraph: ToolDefinition = {
     if (count < 1) throw new ToolError('count must be at least 1');
 
     const paraCount = await bridge.send<GetParagraphsResult>('getParagraphs', {});
-    const total = paraCount.count;
+    const total = paraCount.total;
     checkBounds(fromIndex, total, 'fromIndex');
     if (fromIndex + count - 1 >= total) throw new ToolError(`fromIndex + count (${fromIndex + count}) exceeds paragraph count (${total}).`);
     checkBounds(toIndex, total, 'toIndex');

@@ -63,7 +63,8 @@ describe('Document & Paragraphs', () => {
     if (skip()) return;
     const page = await client.call('word_get_paragraphs', { start: 1, end: 3 });
     expect(page.paragraphs.length).toBe(2);
-    expect(page.count).toBeGreaterThan(2);
+    expect(page.count).toBe(2);
+    expect(page.total).toBeGreaterThan(2);
   });
 
   test('out-of-range start returns warning', async () => {

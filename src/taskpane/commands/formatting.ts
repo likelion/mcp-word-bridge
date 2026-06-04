@@ -7,6 +7,8 @@ export const formattingCommands: Record<string, CommandHandler> = {
     checkNonEmptyString(p.text, 'text');
     if (p.size !== undefined && p.size <= 0) throw new Error('size must be positive');
     if (p.size !== undefined && p.size > 1638) throw new Error('size must not exceed 1638 points (Word maximum)');
+    if (p.size !== undefined && p.size < 1) throw new Error('size must be at least 1 point');
+    if (p.size !== undefined && !Number.isFinite(p.size)) throw new Error('size must be a finite number');
     if (p.color) checkHexColor(p.color);
     if (p.highlightColor) checkHighlightColor(p.highlightColor);
     checkSearchLength(p.text);

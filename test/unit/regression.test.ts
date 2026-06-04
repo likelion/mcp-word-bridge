@@ -25,7 +25,7 @@ function mockBridge(responses: Record<string, any> = {}): any {
     send: async (action: string, params: any = {}) => {
       calls.push({ action, params });
       if (responses[action]) return responses[action];
-      if (action === 'getParagraphs') return { count: 5, paragraphs: [] };
+      if (action === 'getParagraphs') return { total: 5, count: 5, paragraphs: [] };
       if (action === 'getParaOoxml') return { ooxml: '<pkg:package></pkg:package>' };
       if (action === 'getContentControls') return { count: 0, controls: [] };
       return { success: true };
@@ -35,48 +35,62 @@ function mockBridge(responses: Record<string, any> = {}): any {
 
 /** Shorthand mock with just paragraph count */
 function mockBridgeWithParas(count = 5): any {
-  return mockBridge({ getParagraphs: { count, paragraphs: [] } });
+  return mockBridge({ getParagraphs: { total: count, count, paragraphs: [] } });
 }
 
 // =============================================================================
-// search_and_replace rejects Word special find codes
+// search_and_replace allows Word special codes (consistent with word_search)
 // =============================================================================
-describe('search_and_replace rejects Word special codes', () => {
+describe('search_and_replace allows Word special codes', () => {
   const handler = handlers.get('word_search_and_replace')!;
 
-  test('rejects ^p in find string', async () => {
-    await expect(handler({ find: '^p', replace: 'x' }, mockBridge()))
-      .rejects.toThrow('Word special code');
+  test('accepts ^p in find string', async () => {
+    const bridge = mockBridge({ searchAndReplace: { replacements: 1 } });
+    const result = await handler({ find: '^p', replace: 'x' }, bridge);
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed.replacements).toBe(1);
   });
 
-  test('rejects ^13 in find string', async () => {
-    await expect(handler({ find: '^13', replace: 'x' }, mockBridge()))
-      .rejects.toThrow('Word special code');
+  test('accepts ^13 in find string', async () => {
+    const bridge = mockBridge({ searchAndReplace: { replacements: 1 } });
+    const result = await handler({ find: '^13', replace: 'x' }, bridge);
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed.replacements).toBe(1);
   });
 
-  test('rejects ^w in find string', async () => {
-    await expect(handler({ find: '^w', replace: 'x' }, mockBridge()))
-      .rejects.toThrow('Word special code');
+  test('accepts ^w in find string', async () => {
+    const bridge = mockBridge({ searchAndReplace: { replacements: 1 } });
+    const result = await handler({ find: '^w', replace: 'x' }, bridge);
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed.replacements).toBe(1);
   });
 
-  test('rejects ^t in find string', async () => {
-    await expect(handler({ find: '^t', replace: 'x' }, mockBridge()))
-      .rejects.toThrow('Word special code');
+  test('accepts ^t in find string', async () => {
+    const bridge = mockBridge({ searchAndReplace: { replacements: 1 } });
+    const result = await handler({ find: '^t', replace: 'x' }, bridge);
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed.replacements).toBe(1);
   });
 
-  test('rejects ^11 in find string', async () => {
-    await expect(handler({ find: '^11', replace: 'x' }, mockBridge()))
-      .rejects.toThrow('Word special code');
+  test('accepts ^11 in find string', async () => {
+    const bridge = mockBridge({ searchAndReplace: { replacements: 1 } });
+    const result = await handler({ find: '^11', replace: 'x' }, bridge);
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed.replacements).toBe(1);
   });
 
-  test('rejects ^p in replace string', async () => {
-    await expect(handler({ find: 'hello', replace: '^p' }, mockBridge()))
-      .rejects.toThrow('Word special code');
+  test('accepts ^p in replace string', async () => {
+    const bridge = mockBridge({ searchAndReplace: { replacements: 1 } });
+    const result = await handler({ find: 'hello', replace: '^p' }, bridge);
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed.replacements).toBe(1);
   });
 
-  test('rejects ^w in replace string', async () => {
-    await expect(handler({ find: 'hello', replace: 'a^wb' }, mockBridge()))
-      .rejects.toThrow('Word special code');
+  test('accepts ^w in replace string', async () => {
+    const bridge = mockBridge({ searchAndReplace: { replacements: 1 } });
+    const result = await handler({ find: 'hello', replace: 'a^wb' }, bridge);
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed.replacements).toBe(1);
   });
 
   test('accepts normal text without caret codes', async () => {
@@ -101,6 +115,88 @@ describe('search_and_replace rejects Word special codes', () => {
   test('rejects whitespace-only find string', async () => {
     await expect(handler({ find: '   ', replace: 'x' }, mockBridge()))
       .rejects.toThrow('cannot be empty');
+  });
+});
+
+// =============================================================================
+// search_and_replace bookmark preservation
+// =============================================================================
+describe('search_and_replace bookmark preservation', () => {
+  const handler = handlers.get('word_search_and_replace')!;
+
+  test('passes preserveBookmarks parameter to bridge', async () => {
+    const bridge = mockBridge({ searchAndReplace: { replacements: 1 } });
+    await handler({ find: 'hello', replace: 'world', preserveBookmarks: true }, bridge);
+    expect(bridge.calls[0].params.preserveBookmarks).toBe(true);
+  });
+
+  test('returns bookmarksLost in response when bridge reports it', async () => {
+    const bridge = mockBridge({
+      searchAndReplace: { replacements: 2, bookmarksLost: 1, warning: '1 bookmark(s) destroyed by this replacement: bm1. Use preserveBookmarks: true to re-create them on the replacement text.' },
+    });
+    const result = await handler({ find: 'foo', replace: 'bar' }, bridge);
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed.replacements).toBe(2);
+    expect(parsed.bookmarksLost).toBe(1);
+    expect(parsed.warning).toContain('bookmark');
+  });
+
+  test('returns bookmarksRestored in response when preserveBookmarks is true', async () => {
+    const bridge = mockBridge({
+      searchAndReplace: { replacements: 3, bookmarksRestored: 2 },
+    });
+    const result = await handler({ find: 'a', replace: 'b', preserveBookmarks: true }, bridge);
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed.replacements).toBe(3);
+    expect(parsed.bookmarksRestored).toBe(2);
+    expect(parsed.warning).toBeUndefined();
+  });
+
+  test('no bookmark fields when no bookmarks affected', async () => {
+    const bridge = mockBridge({ searchAndReplace: { replacements: 5 } });
+    const result = await handler({ find: 'x', replace: 'y' }, bridge);
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed.replacements).toBe(5);
+    expect(parsed.bookmarksLost).toBeUndefined();
+    expect(parsed.bookmarksRestored).toBeUndefined();
+    expect(parsed.warning).toBeUndefined();
+  });
+
+  test('preserveBookmarks defaults to false (not included in params)', async () => {
+    const bridge = mockBridge({ searchAndReplace: { replacements: 1 } });
+    await handler({ find: 'a', replace: 'b' }, bridge);
+    expect(bridge.calls[0].params.preserveBookmarks).toBeUndefined();
+  });
+});
+
+// =============================================================================
+// search_and_replace case-preservation skip
+// =============================================================================
+describe('search_and_replace case-preservation', () => {
+  const handler = handlers.get('word_search_and_replace')!;
+
+  test('returns skipped count when matches are identical to replace text', async () => {
+    const bridge = mockBridge({ searchAndReplace: { replacements: 1, skipped: 2 } });
+    const result = await handler({ find: 'hello', replace: 'hello', matchCase: false }, bridge);
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed.replacements).toBe(1);
+    expect(parsed.skipped).toBe(2);
+  });
+
+  test('no skipped field when all matches are replaced', async () => {
+    const bridge = mockBridge({ searchAndReplace: { replacements: 3 } });
+    const result = await handler({ find: 'Hello', replace: 'World' }, bridge);
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed.replacements).toBe(3);
+    expect(parsed.skipped).toBeUndefined();
+  });
+
+  test('skipped field is zero when not present in response', async () => {
+    const bridge = mockBridge({ searchAndReplace: { replacements: 0 } });
+    const result = await handler({ find: 'nonexistent', replace: 'x' }, bridge);
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed.replacements).toBe(0);
+    expect(parsed.skipped).toBeUndefined();
   });
 });
 
@@ -218,6 +314,28 @@ describe('set_content_control_text duplicate tag detection', () => {
 });
 
 // =============================================================================
+// insert_content_control forwards tag parameter for duplicate detection
+// =============================================================================
+describe('insert_content_control tag forwarding', () => {
+  const handler = handlers.get('word_insert_content_control')!;
+
+  test('passes tag parameter to bridge', async () => {
+    const bridge = mockBridge({ insertContentControl: { success: true } });
+    await handler({ anchorText: 'hello', tag: 'my_tag', type: 'RichText' }, bridge);
+    const call = bridge.calls.find((c: any) => c.action === 'insertContentControl');
+    expect(call).toBeDefined();
+    expect(call.params.tag).toBe('my_tag');
+  });
+
+  test('bridge response warning is returned to caller', async () => {
+    const bridge = mockBridge({ insertContentControl: { success: true, warning: 'Another content control already uses tag "my_tag". Duplicate tags prevent tag-based lookups — use word_set_content_control_text with "id" instead.' } });
+    const result = await handler({ anchorText: 'hello', tag: 'my_tag' }, bridge);
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed.warning).toContain('Duplicate tags');
+  });
+});
+
+// =============================================================================
 // Float index and count rejection
 // =============================================================================
 describe('Float index and count rejection', () => {
@@ -305,7 +423,7 @@ describe('setParagraphSpacing bounds validation', () => {
 
   test('rejects firstLineIndent exceeding maximum', async () => {
     await expect(handler({ index: 0, firstLineIndent: 99999 }, mockBridge()))
-      .rejects.toThrow('exceeds maximum');
+      .rejects.toThrow('out of range');
   });
 
   test('rejects lineSpacing exceeding maximum', async () => {
@@ -340,6 +458,28 @@ describe('setParagraphSpacing bounds validation', () => {
   test('rejects non-integer index', async () => {
     await expect(handler({ index: 1.5, leftIndent: 36 }, mockBridge()))
       .rejects.toThrow('non-negative integer');
+  });
+
+  test('rejects negative leftIndent', async () => {
+    await expect(handler({ index: 0, leftIndent: -50 }, mockBridge()))
+      .rejects.toThrow('non-negative');
+  });
+
+  test('rejects negative rightIndent', async () => {
+    await expect(handler({ index: 0, rightIndent: -10 }, mockBridge()))
+      .rejects.toThrow('non-negative');
+  });
+
+  test('allows negative firstLineIndent (hanging indent)', async () => {
+    const bridge = mockBridge({ setParagraphSpacing: { success: true } });
+    const result = await handler({ index: 0, firstLineIndent: -36 }, bridge);
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed.success).toBe(true);
+  });
+
+  test('rejects firstLineIndent below -1584', async () => {
+    await expect(handler({ index: 0, firstLineIndent: -2000 }, mockBridge()))
+      .rejects.toThrow('out of range');
   });
 });
 
@@ -650,7 +790,7 @@ describe('move_paragraph detects no-op', () => {
     }));
     return {
       send: async (action: string) => {
-        if (action === 'getParagraphs') return { count: n, paragraphs };
+        if (action === 'getParagraphs') return { total: n, count: n, paragraphs };
         return { ooxml: '<pkg:package></pkg:package>' };
       },
     };
@@ -667,6 +807,26 @@ describe('move_paragraph detects no-op', () => {
     const result = await moveHandler({ fromIndex: 0, toIndex: 1 }, bridgeWithNParas(5));
     const parsed = JSON.parse(result.content[0].text);
     expect(parsed.warning).toContain('No move performed');
+  });
+
+  test('rejects moving the trailing empty paragraph', async () => {
+    const paragraphs = Array.from({ length: 5 }, (_, i) => ({
+      index: i, text: i === 4 ? '' : `P${i}`, style: 'Normal', inTable: false, isTocEntry: false, outlineLevel: 10,
+    }));
+    const bridge: any = {
+      send: async (action: string) => {
+        if (action === 'getParagraphs') return { total: 5, count: 5, paragraphs };
+        return { ooxml: '<pkg:package></pkg:package>' };
+      },
+    };
+    await expect(moveHandler({ fromIndex: 4, toIndex: 0 }, bridge))
+      .rejects.toThrow('Cannot move the last paragraph');
+  });
+
+  test('allows moving last paragraph if it has content', async () => {
+    const result = await moveHandler({ fromIndex: 4, toIndex: 0 }, bridgeWithNParas(5));
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed.success).toBe(true);
   });
 });
 
@@ -768,5 +928,218 @@ describe('search tool description includes special codes note', () => {
     const fnTool = tools.find(t => t.name === 'word_insert_footnote');
     expect(fnTool).toBeDefined();
     expect(fnTool!.description).toContain('reverse');
+  });
+});
+
+// =============================================================================
+// insert_table headerRowCount defaults to 0
+// =============================================================================
+describe('insert_table headerRowCount default', () => {
+  const handler = handlers.get('word_insert_table')!;
+
+  test('forwards headerRowCount=0 when not specified', async () => {
+    const bridge = mockBridge({ insertTable: { success: true } });
+    await handler({ rows: 2, cols: 2 }, bridge);
+    const call = bridge.calls.find((c: any) => c.action === 'insertTable');
+    expect(call).toBeDefined();
+    // The parameter is not set by the server (taskpane handles default)
+    // Verify it's forwarded as-is (undefined means taskpane will use ?? 0)
+    expect(call.params.headerRowCount).toBeUndefined();
+  });
+
+  test('forwards explicit headerRowCount to bridge', async () => {
+    const bridge = mockBridge({ insertTable: { success: true } });
+    await handler({ rows: 2, cols: 2, headerRowCount: 1 }, bridge);
+    const call = bridge.calls.find((c: any) => c.action === 'insertTable');
+    expect(call.params.headerRowCount).toBe(1);
+  });
+
+  test('forwards headerRowCount=0 explicitly', async () => {
+    const bridge = mockBridge({ insertTable: { success: true } });
+    await handler({ rows: 2, cols: 2, headerRowCount: 0 }, bridge);
+    const call = bridge.calls.find((c: any) => c.action === 'insertTable');
+    expect(call.params.headerRowCount).toBe(0);
+  });
+
+  test('tool schema documents default as 0', () => {
+    const { tools } = buildToolRegistry();
+    const tableTool = tools.find(t => t.name === 'word_insert_table');
+    expect(tableTool).toBeDefined();
+    const desc = (tableTool!.schema.properties as any).headerRowCount.description;
+    expect(desc).toContain('default: 0');
+  });
+});
+
+// =============================================================================
+// Batch: server-composed tool execution path
+// =============================================================================
+describe('Batch executes server-composed tools', () => {
+  const batchHandler = handlers.get('word_batch')!;
+
+  test('executes server-composed tool (move_paragraph) within batch', async () => {
+    const paragraphs = Array.from({ length: 5 }, (_, i) => ({
+      index: i, text: `P${i}`, style: 'Normal', inTable: false, isTocEntry: false, outlineLevel: 10,
+    }));
+    const bridge: any = {
+      send: async (action: string) => {
+        if (action === 'getParagraphs') return { total: 5, count: 5, paragraphs };
+        if (action === 'batchExecute') return { results: [] };
+        if (action === 'getParaOoxml') return { ooxml: '<pkg:package></pkg:package>' };
+        return { success: true };
+      },
+    };
+    const result = await batchHandler({
+      operations: [{ tool: 'word_move_paragraph', args: { fromIndex: 4, toIndex: 0 } }],
+    }, bridge);
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed.completed).toBe(1);
+    expect(parsed.results[0].success).toBe(true);
+  });
+
+  test('stops on server-composed tool failure', async () => {
+    const bridge: any = {
+      send: async (action: string) => {
+        if (action === 'batchExecute') return { results: [] };
+        if (action === 'getParagraphs') return { total: 2, count: 2, paragraphs: [] };
+        return { success: true };
+      },
+    };
+    const result = await batchHandler({
+      operations: [
+        { tool: 'word_move_paragraph', args: { fromIndex: 99, toIndex: 0 } },
+        { tool: 'word_get_text', args: {} },
+      ],
+    }, bridge);
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed.failed).toBe(1);
+    expect(parsed.completed).toBe(0);
+    expect(parsed.results[0].success).toBe(false);
+    expect(parsed.results[0].error).toContain('out of range');
+  });
+
+  test('native batch failure stops execution', async () => {
+    const bridge: any = {
+      send: async (action: string) => {
+        if (action === 'batchExecute') return {
+          results: [{ index: 0, success: false, error: 'simulated failure' }],
+        };
+        return { success: true };
+      },
+    };
+    const result = await batchHandler({
+      operations: [
+        { tool: 'word_get_text', args: {} },
+        { tool: 'word_get_text', args: {} },
+      ],
+    }, bridge);
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed.failed).toBe(1);
+    expect(parsed.completed).toBe(0);
+    expect(parsed.results[0].error).toBe('simulated failure');
+  });
+});
+
+// =============================================================================
+// Document outline outlineLevel fallback
+// =============================================================================
+describe('Document outline outlineLevel fallback', () => {
+  const outlineHandler = handlers.get('word_get_document_outline')!;
+
+  test('uses outlineLevel when style does not match Heading N', async () => {
+    const paragraphs = [
+      { index: 0, text: 'Custom styled heading', style: 'CustomStyle', outlineLevel: 2, isTocEntry: false, inTable: false, isListItem: false },
+      { index: 1, text: 'Body text', style: 'Normal', outlineLevel: 10, isTocEntry: false, inTable: false, isListItem: false },
+    ];
+    const bridge: any = {
+      send: async () => ({ total: 2, count: 2, paragraphs }),
+    };
+    const result = await outlineHandler({}, bridge);
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed.count).toBe(1);
+    expect(parsed.outline[0].text).toBe('Custom styled heading');
+    expect(parsed.outline[0].level).toBe(2);
+  });
+
+  test('skips TOC entries even with valid outlineLevel', async () => {
+    const paragraphs = [
+      { index: 0, text: 'TOC entry\t1', style: 'TOC 1', outlineLevel: 1, isTocEntry: true, inTable: false, isListItem: false },
+      { index: 1, text: 'Real heading', style: 'Heading 1', outlineLevel: 1, isTocEntry: false, inTable: false, isListItem: false },
+    ];
+    const bridge: any = {
+      send: async () => ({ total: 2, count: 2, paragraphs }),
+    };
+    const result = await outlineHandler({}, bridge);
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed.count).toBe(1);
+    expect(parsed.outline[0].text).toBe('Real heading');
+  });
+});
+
+// =============================================================================
+// Equations handler: display mode and error paths
+// =============================================================================
+describe('Equations handler', () => {
+  const eqHandler = handlers.get('word_insert_equation')!;
+
+  test('rejects empty latex string', async () => {
+    const bridge: any = { send: async () => ({}) };
+    const result = await eqHandler({ latex: '' }, bridge);
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain('"latex"');
+  });
+
+  test('rejects invalid latex', async () => {
+    const bridge: any = { send: async () => ({}) };
+    const result = await eqHandler({ latex: '\\frac{' }, bridge);
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain('LaTeX parse error');
+  });
+
+  test('display mode inserts OOXML at end', async () => {
+    const calls: string[] = [];
+    const bridge: any = { send: async (action: string) => { calls.push(action); return {}; } };
+    const result = await eqHandler({ latex: 'x^2' }, bridge);
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed.success).toBe(true);
+    expect(parsed.displayMode).toBe(true);
+    expect(calls).toContain('insertOoxml');
+  });
+
+  test('inline mode without anchor inserts at selection', async () => {
+    const calls: string[] = [];
+    const bridge: any = { send: async (action: string) => { calls.push(action); return {}; } };
+    const result = await eqHandler({ latex: 'y', displayMode: false }, bridge);
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed.success).toBe(true);
+    expect(parsed.displayMode).toBe(false);
+    expect(calls).toContain('insertOoxmlAtSelection');
+  });
+
+  test('inline mode with anchor searches and inserts', async () => {
+    const calls: Array<{ action: string; params: any }> = [];
+    const bridge: any = {
+      send: async (action: string, params: any) => {
+        calls.push({ action, params });
+        if (action === 'search') return { count: 1, matches: [{ index: 0, text: 'hello' }] };
+        return { success: true, replacements: 1 };
+      },
+    };
+    const result = await eqHandler({ latex: 'z', displayMode: false, anchorText: 'hello' }, bridge);
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed.success).toBe(true);
+    expect(calls.some(c => c.action === 'search')).toBe(true);
+    expect(calls.some(c => c.action === 'insertText')).toBe(true);
+    expect(calls.some(c => c.action === 'insertOoxmlAtSelection')).toBe(true);
+  });
+
+  test('inline mode with nonexistent anchor throws', async () => {
+    const bridge: any = {
+      send: async (action: string) => {
+        if (action === 'search') return { count: 0, matches: [] };
+        return {};
+      },
+    };
+    await expect(eqHandler({ latex: 'a', displayMode: false, anchorText: 'nope' }, bridge))
+      .rejects.toThrow('Anchor not found');
   });
 });

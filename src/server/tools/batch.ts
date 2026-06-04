@@ -40,6 +40,13 @@ export function createBatchTool(
         throw new ToolError(`maximum ${MAX_BATCH_OPERATIONS} operations per batch`);
       }
 
+      // Reject nested batch calls to prevent unbounded recursion
+      for (const op of operations) {
+        if (op.tool === 'word_batch') {
+          throw new ToolError('word_batch cannot be nested inside another batch. Flatten your operations into a single batch call.');
+        }
+      }
+
       const results: ResultEntry[] = [];
       let nativeBuf: OpEntry[] = [];
       let stopped = false;

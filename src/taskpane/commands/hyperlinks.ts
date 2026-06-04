@@ -18,15 +18,21 @@ export const hyperlinkCommands: Record<string, CommandHandler> = {
     if (idx >= results.items.length)
       throw new Error(`Occurrence ${idx} not found (only ${results.items.length} match${results.items.length === 1 ? '' : 'es'})`);
     const target = results.items[idx];
-    // BUG-14: Warn if the text already has a hyperlink
     const existingHyperlink = target.hyperlink;
     target.hyperlink = p.url;
+    // Load the resulting range text to detect if Word expanded the hyperlink range
+    target.load('text');
     target.getRange('End').select();
     await ctx.sync();
     const result: any = { success: true };
+    const warnings: string[] = [];
     if (existingHyperlink) {
-      result.warning = `Replaced existing hyperlink "${existingHyperlink}" with "${p.url}".`;
+      warnings.push(`Replaced existing hyperlink "${existingHyperlink}" with "${p.url}".`);
     }
+    if (target.text && target.text !== p.anchorText) {
+      warnings.push(`Hyperlink applied to "${target.text}" (expanded from requested "${p.anchorText}" due to existing hyperlink range).`);
+    }
+    if (warnings.length > 0) result.warning = warnings.join(' ');
     return result;
   },
 

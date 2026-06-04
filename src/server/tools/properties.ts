@@ -22,7 +22,7 @@ export const setCustomProperty: ToolDefinition = {
   async handler(args, bridge) {
     const key = args.key as string;
     checkNonEmpty(key, 'key');
-    // BUG-09: Validate key length to prevent silent truncation
+    // Validate key length to prevent silent truncation
     checkPropertyKeyLength(key);
 
     const result = await bridge.send('setCustomProperty', args);

@@ -36,4 +36,10 @@ describe('Batch tool argument validation', () => {
     expect(parsed.results[0].success).toBe(false);
     expect(parsed.results[0].error).toContain('Unknown tool');
   });
+
+  test('rejects nested word_batch calls', async () => {
+    await expect(batchHandler({
+      operations: [{ tool: 'word_batch', args: { operations: [{ tool: 'word_get_text', args: {} }] } }],
+    }, mockBridge)).rejects.toThrow('cannot be nested');
+  });
 });

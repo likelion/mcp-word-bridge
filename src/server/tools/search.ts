@@ -1,7 +1,6 @@
 import type { ToolDefinition } from '../types';
 import { ToolError } from '../types';
 import { forwardTool, jsonResult } from './helpers';
-import { checkNoSpecialCodes } from '../validation';
 
 export const search = forwardTool(
   'word_search',
@@ -19,29 +18,25 @@ export const search = forwardTool(
 
 export const searchAndReplace: ToolDefinition = {
   name: 'word_search_and_replace',
-  description: '[Search] Find and replace ALL occurrences. For single-paragraph edits, prefer word_replace_paragraph_text.',
+  description: '[Search] Find and replace ALL occurrences. Supports Word search codes (^p = paragraph mark, ^t = tab). For single-paragraph edits, prefer word_replace_paragraph_text.',
   schema: {
     properties: {
       find: { type: 'string' },
       replace: { type: 'string' },
       matchCase: { type: 'boolean', description: 'Default: false' },
       matchWholeWord: { type: 'boolean' },
+      preserveBookmarks: { type: 'boolean', description: 'Re-create bookmarks on replacement text after replace. Default: false' },
     },
     required: ['find', 'replace'],
   },
   async handler(args, bridge) {
     const find = args.find as string;
-    const replace = args.replace as string;
 
     if (!find || typeof find !== 'string' || find.trim() === '') {
       throw new ToolError('find string cannot be empty.');
     }
 
-    // BUG-01: Reject Word special codes that can corrupt document structure
-    checkNoSpecialCodes(find, 'find');
-    checkNoSpecialCodes(replace, 'replace');
-
-    const result = await bridge.send('searchAndReplace', args);
+    const result = await bridge.send<{ replacements: number; bookmarksLost?: number; bookmarksRestored?: number; warning?: string }>('searchAndReplace', args);
     return jsonResult(result);
   },
 };

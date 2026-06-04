@@ -42,7 +42,7 @@ export const paragraphCommands: Record<string, CommandHandler> = {
       const resolvedStyle = resolveStyle(para.style, para.outlineLevel);
       items.push({ index: i, text: sanitizeText(para.text), style: resolvedStyle, alignment: para.alignment, isListItem: para.isListItem, inTable, isTocEntry: isToc, outlineLevel: para.outlineLevel });
     }
-    const result: any = { count: paragraphs.items.length, paragraphs: items };
+    const result: any = { total: paragraphs.items.length, count: items.length, paragraphs: items };
     if (p.start !== undefined && p.start >= paragraphs.items.length) {
       result.warning = `start index (${p.start}) is beyond the last paragraph. Document has ${paragraphs.items.length} paragraphs (valid indices: 0-${paragraphs.items.length - 1}).`;
     }
@@ -119,10 +119,25 @@ export const paragraphCommands: Record<string, CommandHandler> = {
     paragraphs.load('text,parentTableCellOrNullObject');
     await ctx.sync();
     if (p.index >= paragraphs.items.length) throw new Error(`Paragraph index out of range. Valid indices: 0-${paragraphs.items.length - 1} (document has ${paragraphs.items.length} paragraphs).`);
-    // Guard: reject deletion of table cell paragraphs
+    // Guard: allow deletion of extra paragraphs in table cells, block last one
     let inTable = false;
     try { inTable = paragraphs.items[p.index].parentTableCellOrNullObject && !paragraphs.items[p.index].parentTableCellOrNullObject.isNullObject; } catch { /* ignore */ }
-    if (inTable) throw new Error('Cannot delete a paragraph inside a table cell. Use word_set_table_cell or word_replace_paragraph_text to modify table content.');
+    if (inTable) {
+      // Check if this is the only paragraph in the cell — if so, block deletion
+      try {
+        const cell = paragraphs.items[p.index].parentTableCellOrNullObject;
+        const cellParas = cell.body.paragraphs;
+        cellParas.load('text');
+        await ctx.sync();
+        if (cellParas.items.length <= 1) {
+          throw new Error('Cannot delete the only paragraph in a table cell. Use word_set_table_cell or word_replace_paragraph_text to modify its content.');
+        }
+      } catch (e: any) {
+        // If the check itself fails (older API), fall back to blocking
+        if (e.message?.includes('Cannot delete the only paragraph')) throw e;
+        throw new Error('Cannot delete a paragraph inside a table cell. Use word_set_table_cell or word_replace_paragraph_text to modify table content.');
+      }
+    }
     const countBefore = paragraphs.items.length;
     paragraphs.items[p.index].delete();
     try { await ctx.sync(); } catch (e: any) {
@@ -186,7 +201,7 @@ export const paragraphCommands: Record<string, CommandHandler> = {
     if (p.lineSpacing !== undefined && p.lineSpacing <= 0) throw new Error('lineSpacing must be positive');
     if (p.spaceBefore !== undefined && p.spaceBefore < 0) throw new Error('spaceBefore must be non-negative');
     if (p.spaceAfter !== undefined && p.spaceAfter < 0) throw new Error('spaceAfter must be non-negative');
-    // BUG-06: Enforce upper bounds on spacing/indent values (max 1584pt = 22 inches)
+    // Enforce upper bounds on spacing/indent values (max 1584pt = 22 inches)
     const MAX_SPACING = 1584;
     if (p.lineSpacing !== undefined && p.lineSpacing > MAX_SPACING) throw new Error(`lineSpacing value ${p.lineSpacing} exceeds maximum (${MAX_SPACING} points = 22 inches).`);
     if (p.spaceBefore !== undefined && p.spaceBefore > MAX_SPACING) throw new Error(`spaceBefore value ${p.spaceBefore} exceeds maximum (${MAX_SPACING} points = 22 inches).`);

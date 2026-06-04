@@ -94,6 +94,32 @@ export function checkSpacingBounds(value: number, name: string): void {
   }
 }
 
+/**
+ * Validate indent values.
+ * - firstLineIndent: allows negative (hanging indent), bounded to ±1584pt.
+ * - leftIndent / rightIndent: must be non-negative, bounded to 1584pt.
+ */
+export function checkIndentBounds(value: number, name: string): void {
+  if (name === 'firstLineIndent') {
+    // Hanging indent: negative is valid, but bounded
+    if (value < -MAX_SPACING_POINTS || value > MAX_SPACING_POINTS) {
+      throw new ToolError(
+        `${name} value ${value} is out of range. Valid range: -${MAX_SPACING_POINTS} to ${MAX_SPACING_POINTS} points.`,
+      );
+    }
+  } else {
+    // leftIndent, rightIndent: non-negative
+    if (value < 0) {
+      throw new ToolError(`${name} must be non-negative (in points).`);
+    }
+    if (value > MAX_SPACING_POINTS) {
+      throw new ToolError(
+        `${name} value ${value} exceeds maximum (${MAX_SPACING_POINTS} points = 22 inches).`,
+      );
+    }
+  }
+}
+
 /** Validate custom property key length */
 export function checkPropertyKeyLength(key: string): void {
   if (key.length > MAX_CUSTOM_PROPERTY_KEY_LENGTH) {

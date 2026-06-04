@@ -21,7 +21,7 @@ export const tableCommands: Record<string, CommandHandler> = {
     const body = ctx.document.body;
     const table = body.insertTable(p.rows, p.cols, p.location || 'End', p.data || null);
     if (p.style) table.style = p.style;
-    table.headerRowCount = p.headerRowCount || 1;
+    table.headerRowCount = p.headerRowCount ?? 0;
     await ctx.sync();
     const tableRange = table.getRange('End');
     tableRange.select();
@@ -85,7 +85,7 @@ export const tableCommands: Record<string, CommandHandler> = {
     tableRange.select();
     await ctx.sync();
     const result: any = { success: true };
-    // BUG-08: Warn when fewer values than columns are provided
+    // Warn when fewer values than columns are provided
     if (p.values && p.values.length > 0 && p.values.length < colCount) {
       result.warning = `Only ${p.values.length} of ${colCount} cells populated. Remaining cells left empty.`;
     }

@@ -23,23 +23,92 @@ export const searchCommands: Record<string, CommandHandler> = {
     if (!p.find || typeof p.find !== 'string' || p.find.trim() === '')
       throw new Error('find string cannot be empty. Provide a non-empty search string.');
     checkSearchLength(p.find);
-    // BUG-01: Reject Word special codes that can corrupt document structure
-    const specialCodePattern = /\^(p|w|t|l|m|b|n|s|d|a|e|f|g|v|~|\^|\-|13|11|14|12|07|09)/;
-    const findMatch = (p.find as string).match(specialCodePattern);
-    if (findMatch) throw new Error(`find contains Word special code "${findMatch[0]}" which can corrupt document structure. Use literal text only. Common special codes: ^p (paragraph mark), ^t (tab), ^w (whitespace), ^13 (paragraph mark).`);
-    const replaceMatch = (p.replace as string).match(specialCodePattern);
-    if (replaceMatch) throw new Error(`replace contains Word special code "${replaceMatch[0]}" which can corrupt document structure. Use literal text only.`);
+
+    // Snapshot bookmarks before replacement
+    let bookmarksBefore: string[] = [];
+    try {
+      const bodyRange = ctx.document.body.getRange();
+      const bm = bodyRange.getBookmarks(true, true);
+      await ctx.sync();
+      bookmarksBefore = bm.value || [];
+    } catch { /* older API — skip bookmark tracking */ }
+
+    // If preserveBookmarks, collect which bookmarks are on each match
+    const preserveBookmarks = !!p.preserveBookmarks;
+    let matchBookmarks: string[][] = [];
+
     const results = ctx.document.body.search(p.find, { matchCase: p.matchCase || false, matchWholeWord: p.matchWholeWord || false });
     results.load('text');
     await ctx.sync();
     const count = results.items.length;
-    let lastRange: any = null;
-    for (let i = 0; i < count; i++) {
-      lastRange = results.items[i].insertText(p.replace, Word.InsertLocation.replace);
+
+    if (preserveBookmarks && count > 0 && bookmarksBefore.length > 0) {
+      // For each match range, find bookmarks that intersect it
+      for (let i = 0; i < count; i++) {
+        try {
+          const rangeBm = results.items[i].getBookmarks(true, true);
+          await ctx.sync();
+          matchBookmarks.push(rangeBm.value || []);
+        } catch {
+          matchBookmarks.push([]);
+        }
+      }
     }
-    if (lastRange) lastRange.getRange('End').select();
-    await ctx.sync();
-    return { replacements: count };
+
+    // Perform the replacements — skip matches where text already equals replace
+    // string exactly (prevents case-insensitive replace from altering casing)
+    const insertedRanges: any[] = [];
+    let actualReplacements = 0;
+    for (let i = 0; i < count; i++) {
+      if (results.items[i].text === p.replace) {
+        // Already identical — no replacement needed, push original range for bookmark tracking
+        insertedRanges.push(results.items[i]);
+        continue;
+      }
+      const inserted = results.items[i].insertText(p.replace, Word.InsertLocation.replace);
+      insertedRanges.push(inserted);
+      actualReplacements++;
+    }
+    if (insertedRanges.length > 0) insertedRanges[insertedRanges.length - 1].getRange('End').select();
+    if (actualReplacements > 0) await ctx.sync();
+
+    // Re-create bookmarks on replacement text if requested
+    let bookmarksRestored = 0;
+    if (preserveBookmarks && matchBookmarks.length > 0) {
+      for (let i = 0; i < matchBookmarks.length; i++) {
+        const bmNames = matchBookmarks[i] || [];
+        for (const bmName of bmNames) {
+          try {
+            insertedRanges[i].insertBookmark(bmName);
+            bookmarksRestored++;
+          } catch { /* bookmark restore failed — skip */ }
+        }
+      }
+      if (bookmarksRestored > 0) await ctx.sync();
+    }
+
+    // Check how many bookmarks were lost
+    let bookmarksAfter: string[] = [];
+    try {
+      const bodyRange2 = ctx.document.body.getRange();
+      const bm2 = bodyRange2.getBookmarks(true, true);
+      await ctx.sync();
+      bookmarksAfter = bm2.value || [];
+    } catch { /* skip */ }
+
+    const result: any = { replacements: actualReplacements };
+    if (count > actualReplacements) {
+      result.skipped = count - actualReplacements;
+    }
+    const lost = bookmarksBefore.filter(b => !bookmarksAfter.includes(b));
+    if (lost.length > 0 && !preserveBookmarks) {
+      result.warning = `${lost.length} bookmark(s) destroyed by this replacement: ${lost.join(', ')}. Use preserveBookmarks: true to re-create them on the replacement text.`;
+      result.bookmarksLost = lost.length;
+    } else if (bookmarksRestored > 0) {
+      result.bookmarksRestored = bookmarksRestored;
+    }
+
+    return result;
   },
 
   async insertText(ctx, p) {
