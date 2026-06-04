@@ -9,7 +9,7 @@
   },
   "scripts": {
     "build": "node scripts/build.mjs",
-    "start": "node dist/server.cjs",
+    "start": "node dist/server.js",
     "dev": "node scripts/build.mjs --watch",
     "test": "vitest run",
     "test:ci": "vitest run --reporter=default",

@@ -3,11 +3,20 @@ import { CallToolRequestSchema, ListToolsRequestSchema, ListResourcesRequestSche
 import type { Bridge } from './bridge';
 import { buildToolRegistry } from './tools';
 import { ToolError } from './types';
-import { createMutex } from './mutex';
+import { createMutex, Mutex } from './mutex';
 import { usageGuide } from './usage-guide';
 
 // Read version from package.json at build time (inlined by esbuild)
 import pkg from '../../package.json';
+
+// Shared mutex instance — serializes tool calls across ALL MCP sessions.
+// This prevents concurrent document mutations from multiple clients.
+let sharedMutex: Mutex | null = null;
+
+function getSharedMutex(): Mutex {
+  if (!sharedMutex) sharedMutex = createMutex();
+  return sharedMutex;
+}
 
 export function createMcpServer(bridge: Bridge): Server {
   const server = new Server(
@@ -17,9 +26,9 @@ export function createMcpServer(bridge: Bridge): Server {
 
   const { tools, handlers } = buildToolRegistry();
 
-  // Serialize tool calls so concurrent MCP requests execute one at a time.
-  // This prevents race conditions when multiple tools modify the document.
-  const toolMutex = createMutex();
+  // Use a shared mutex so all MCP sessions (stdio + HTTP) serialize through
+  // a single queue, preventing concurrent document mutations.
+  const toolMutex = getSharedMutex();
 
   // List tools
   server.setRequestHandler(ListToolsRequestSchema, async () => ({

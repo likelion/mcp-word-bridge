@@ -51,14 +51,44 @@ That's it. The MCP server starts automatically when your MCP client loads the co
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `MCP_WORD_BRIDGE_PORT` | `3000` | HTTPS port for the bridge server |
+| `MCP_WORD_BRIDGE_GRACE` | `5000` | Idle shutdown delay in ms (daemon auto-exits after this period with no clients) |
+| `MCP_WORD_BRIDGE_LOCK` | `~/.mcp-word-bridge.lock` | Lock/PID file path for daemon coordination |
+
+## Multi-Client Support
+
+Multiple MCP clients can share the same Word document simultaneously. All clients use the same config — the first one to start spawns a background daemon, subsequent ones connect to it automatically. When the last client disconnects, the daemon shuts down after a grace period.
+
+No special setup required. Just add the same config to each MCP host.
 
 ## How It Works
 
 ```
-MCP Client ←stdio→ Server ←WebSocket→ Taskpane (Office Add-in) ←→ Word JS API ←→ Document
+┌──────────────┐  ┌──────────────┐
+│  MCP Client  │  │  MCP Client  │
+└──────┬───────┘  └──────┬───────┘
+       │ stdio           │ stdio
+┌──────┴───────┐  ┌──────┴───────┐
+│    Proxy     │  │    Proxy     │
+└──────┬───────┘  └──────┬───────┘
+       │ HTTPS           │ HTTPS
+       └────────┬────────┘
+                │
+       ┌────────┴────────┐
+       │     Daemon      │
+       │  (shared, one)  │
+       └────────┬────────┘
+                │ WebSocket
+       ┌────────┴────────┐
+       │    Taskpane     │
+       │ (Office Add-in) │
+       └────────┬────────┘
+                │ Word JS API
+       ┌────────┴────────┐
+       │    Document     │
+       └─────────────────┘
 ```
 
-Single process. The MCP client spawns the server, which starts both the HTTPS bridge (for the add-in) and the MCP protocol handler (on stdio). Everything starts and stops together.
+Each MCP host spawns `dist/server.js` which acts as a thin proxy. The proxy ensures a shared daemon is running (via file lock), then forwards JSON-RPC over HTTPS. The daemon serializes all tool calls through a single mutex, so concurrent clients never conflict.
 
 ## Tools (91)
 
