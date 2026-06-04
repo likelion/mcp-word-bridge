@@ -1,4 +1,5 @@
 import type { ToolDefinition } from '../types';
+import { ToolError } from '../types';
 import { forwardTool } from './helpers';
 
 export const getPageLayout = forwardTool(
@@ -27,6 +28,20 @@ export const setPageLayout = forwardTool(
     },
   },
   'setPageLayout',
+  (args) => {
+    const hasProperty =
+      args.orientation !== undefined ||
+      args.topMargin !== undefined ||
+      args.bottomMargin !== undefined ||
+      args.leftMargin !== undefined ||
+      args.rightMargin !== undefined ||
+      args.paperSize !== undefined;
+    if (!hasProperty) {
+      throw new ToolError(
+        'At least one layout property must be provided (orientation, topMargin, bottomMargin, leftMargin, rightMargin, paperSize).',
+      );
+    }
+  },
 );
 
 export const getSections = forwardTool(

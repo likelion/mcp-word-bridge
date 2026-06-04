@@ -96,6 +96,11 @@ export const setParagraphStyle = forwardTool(
     required: ['index'],
   },
   'setParagraphStyle',
+  (args) => {
+    if (args.style === undefined && args.alignment === undefined) {
+      throw new ToolError('At least one of "style" or "alignment" must be provided.');
+    }
+  },
 );
 
 export const setParagraphSpacing: ToolDefinition = {

@@ -80,6 +80,9 @@ export const clearFormatting = forwardTool(
     required: ['text'],
   },
   'clearFormatting',
+  (args) => {
+    checkNonEmpty(args.text, 'text');
+  },
 );
 
 export const getFontInfo = forwardTool(
@@ -94,6 +97,9 @@ export const getFontInfo = forwardTool(
     required: ['text'],
   },
   'getFontInfo',
+  (args) => {
+    checkNonEmpty(args.text, 'text');
+  },
 );
 
 export const formattingTools: ToolDefinition[] = [

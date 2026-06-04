@@ -40,6 +40,9 @@ export const deleteCustomProperty = forwardTool(
     required: ['key'],
   },
   'deleteCustomProperty',
+  (args) => {
+    checkNonEmpty(args.key, 'key');
+  },
 );
 
 export const propertyTools: ToolDefinition[] = [

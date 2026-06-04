@@ -60,7 +60,7 @@ MCP Client ←stdio→ Server ←WebSocket→ Taskpane (Office Add-in) ←→ Wo
 
 Single process. The MCP client spawns the server, which starts both the HTTPS bridge (for the add-in) and the MCP protocol handler (on stdio). Everything starts and stops together.
 
-## Tools (92)
+## Tools (91)
 
 ### Document
 | Tool | Description |

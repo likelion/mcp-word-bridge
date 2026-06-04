@@ -74,6 +74,9 @@ export const insertTextAtMatch = forwardTool(
     required: ['text'],
   },
   'insertText',
+  (args) => {
+    checkNonEmpty(args.text, 'text');
+  },
 );
 
 export const getSelectionInfo = forwardTool(

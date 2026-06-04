@@ -1,5 +1,7 @@
 import type { ToolDefinition } from '../types';
+import { ToolError } from '../types';
 import { forwardTool } from './helpers';
+import { checkNonNegative, checkHexColor } from '../validation';
 
 export const insertTable = forwardTool(
   'word_insert_table',
@@ -16,6 +18,23 @@ export const insertTable = forwardTool(
     required: ['rows', 'cols'],
   },
   'insertTable',
+  (args) => {
+    const rows = args.rows as number;
+    const cols = args.cols as number;
+    if (typeof rows !== 'number' || !Number.isInteger(rows) || rows <= 0) throw new ToolError('rows must be a positive integer (minimum 1).');
+    if (typeof cols !== 'number' || !Number.isInteger(cols) || cols <= 0) throw new ToolError('cols must be a positive integer (minimum 1).');
+    if (cols > 63) throw new ToolError('cols must not exceed 63 (Word maximum column limit).');
+    if (rows > 500) throw new ToolError('rows must not exceed 500 (practical limit for performance).');
+    if (args.data !== undefined) {
+      const data = args.data as unknown[];
+      if (!Array.isArray(data)) throw new ToolError('data must be an array of arrays.');
+      if (data.length !== rows) throw new ToolError(`Data rows (${data.length}) do not match specified rows (${rows}). Provide exactly ${rows} row(s) in the data array.`);
+      for (let i = 0; i < data.length; i++) {
+        if (!Array.isArray(data[i])) throw new ToolError(`data[${i}] must be an array.`);
+        if ((data[i] as unknown[]).length !== cols) throw new ToolError(`Data row ${i} has ${(data[i] as unknown[]).length} columns but expected ${cols}.`);
+      }
+    }
+  },
 );
 
 export const listTables = forwardTool(
@@ -50,6 +69,11 @@ export const setTableCell = forwardTool(
     required: ['tableIndex', 'row', 'col', 'text'],
   },
   'setTableCell',
+  (args) => {
+    checkNonNegative(args.tableIndex, 'tableIndex');
+    checkNonNegative(args.row, 'row');
+    checkNonNegative(args.col, 'col');
+  },
 );
 
 export const addTableRow = forwardTool(
@@ -77,6 +101,10 @@ export const deleteTableRow = forwardTool(
     required: ['tableIndex', 'rowIndex'],
   },
   'deleteTableRow',
+  (args) => {
+    checkNonNegative(args.tableIndex, 'tableIndex');
+    checkNonNegative(args.rowIndex, 'rowIndex');
+  },
 );
 
 export const mergeTableCells = forwardTool(
@@ -93,6 +121,16 @@ export const mergeTableCells = forwardTool(
     required: ['tableIndex', 'topRow', 'firstCell', 'bottomRow', 'lastCell'],
   },
   'mergeTableCells',
+  (args) => {
+    checkNonNegative(args.tableIndex, 'tableIndex');
+    checkNonNegative(args.topRow, 'topRow');
+    checkNonNegative(args.firstCell, 'firstCell');
+    checkNonNegative(args.bottomRow, 'bottomRow');
+    checkNonNegative(args.lastCell, 'lastCell');
+    if ((args.topRow as number) > (args.bottomRow as number)) throw new ToolError(`topRow (${args.topRow}) must be less than or equal to bottomRow (${args.bottomRow}).`);
+    if ((args.firstCell as number) > (args.lastCell as number)) throw new ToolError(`firstCell (${args.firstCell}) must be less than or equal to lastCell (${args.lastCell}).`);
+    if (args.topRow === args.bottomRow && args.firstCell === args.lastCell) throw new ToolError('Cannot merge a single cell with itself. Provide a range spanning at least 2 cells.');
+  },
 );
 
 export const splitTableCell = forwardTool(
@@ -109,6 +147,13 @@ export const splitTableCell = forwardTool(
     required: ['tableIndex', 'row', 'col'],
   },
   'splitTableCell',
+  (args) => {
+    checkNonNegative(args.tableIndex, 'tableIndex');
+    checkNonNegative(args.row, 'row');
+    checkNonNegative(args.col, 'col');
+    if (args.rowCount !== undefined && (typeof args.rowCount !== 'number' || args.rowCount <= 0)) throw new ToolError('rowCount must be a positive integer.');
+    if (args.colCount !== undefined && (typeof args.colCount !== 'number' || args.colCount <= 0)) throw new ToolError('colCount must be a positive integer.');
+  },
 );
 
 export const setTableStyle = forwardTool(
@@ -137,6 +182,12 @@ export const setTableCellShading = forwardTool(
     required: ['tableIndex', 'row', 'col', 'color'],
   },
   'setTableCellShading',
+  (args) => {
+    checkNonNegative(args.tableIndex, 'tableIndex');
+    checkNonNegative(args.row, 'row');
+    checkNonNegative(args.col, 'col');
+    checkHexColor(args.color as string, 'color');
+  },
 );
 
 export const tableTools: ToolDefinition[] = [

@@ -48,7 +48,7 @@ describe('Document & Paragraphs', () => {
   test('alignments applied', async () => {
     if (skip()) return;
     const paras = await client.call('word_get_paragraphs');
-    expect(paras.paragraphs.find((p: any) => p.text === 'Centered text').alignment).toBe('Centered');
+    expect(paras.paragraphs.find((p: any) => p.text === 'Centered text').alignment).toBe('Center');
     expect(paras.paragraphs.find((p: any) => p.text === 'Right aligned').alignment).toBe('Right');
   });
 

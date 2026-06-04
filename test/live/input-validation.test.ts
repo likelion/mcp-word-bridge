@@ -53,7 +53,7 @@ describe('Input Validation', () => {
   test('empty anchorText gives friendly error', async () => {
     if (skip()) return;
     const err = await client.expectError('word_format_text', { text: '', bold: true });
-    expect(err).toContain('cannot be empty');
+    expect(err).toContain('non-empty');
   });
 
   test('size 0 rejected', async () => {
@@ -115,6 +115,7 @@ describe('Input Validation', () => {
   test('insert_content_control without anchorText rejected', async () => {
     if (skip()) return;
     const err = await client.expectError('word_insert_content_control', {});
-    expect(err).toContain('anchorText is required');
+    expect(err).toContain('anchorText');
+    expect(err).toContain('non-empty');
   });
 });

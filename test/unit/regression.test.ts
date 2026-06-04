@@ -1137,9 +1137,8 @@ describe('Equations handler', () => {
 
   test('rejects empty latex string', async () => {
     const bridge: any = { send: async () => ({}) };
-    const result = await eqHandler({ latex: '' }, bridge);
-    expect(result.isError).toBe(true);
-    expect(result.content[0].text).toContain('"latex"');
+    await expect(eqHandler({ latex: '' }, bridge))
+      .rejects.toThrow('latex must be a non-empty string');
   });
 
   test('rejects invalid latex', async () => {
@@ -1169,27 +1168,42 @@ describe('Equations handler', () => {
     expect(calls).toContain('insertOoxmlAtSelection');
   });
 
-  test('inline mode with anchor searches and inserts', async () => {
+  test('inline mode with anchor uses insertOoxmlAfterMatch', async () => {
     const calls: Array<{ action: string; params: any }> = [];
     const bridge: any = {
       send: async (action: string, params: any) => {
         calls.push({ action, params });
-        if (action === 'search') return { count: 1, matches: [{ index: 0, text: 'hello' }] };
-        return { success: true, replacements: 1 };
+        return { success: true };
       },
     };
     const result = await eqHandler({ latex: 'z', displayMode: false, anchorText: 'hello' }, bridge);
     const parsed = JSON.parse(result.content[0].text);
     expect(parsed.success).toBe(true);
-    expect(calls.some(c => c.action === 'search')).toBe(true);
-    expect(calls.some(c => c.action === 'insertText')).toBe(true);
-    expect(calls.some(c => c.action === 'insertOoxmlAtSelection')).toBe(true);
+    expect(calls.some(c => c.action === 'insertOoxmlAfterMatch')).toBe(true);
+    const matchCall = calls.find(c => c.action === 'insertOoxmlAfterMatch')!;
+    expect(matchCall.params.anchorText).toBe('hello');
+    expect(matchCall.params.occurrence).toBe(0);
+    expect(matchCall.params.ooxml).toBeDefined();
   });
 
-  test('inline mode with nonexistent anchor throws', async () => {
+  test('inline mode with anchor passes occurrence and matchCase', async () => {
+    const calls: Array<{ action: string; params: any }> = [];
+    const bridge: any = {
+      send: async (action: string, params: any) => {
+        calls.push({ action, params });
+        return { success: true };
+      },
+    };
+    await eqHandler({ latex: 'z', displayMode: false, anchorText: 'hi', occurrence: 2, matchCase: true }, bridge);
+    const matchCall = calls.find(c => c.action === 'insertOoxmlAfterMatch')!;
+    expect(matchCall.params.occurrence).toBe(2);
+    expect(matchCall.params.matchCase).toBe(true);
+  });
+
+  test('inline mode with nonexistent anchor propagates bridge error', async () => {
     const bridge: any = {
       send: async (action: string) => {
-        if (action === 'search') return { count: 0, matches: [] };
+        if (action === 'insertOoxmlAfterMatch') throw new Error('Anchor not found: nope');
         return {};
       },
     };
@@ -1338,6 +1352,142 @@ describe('move/copy rejects table-internal destination', () => {
 
   test('move to non-table destination is allowed', async () => {
     const result = await moveHandler({ fromIndex: 0, toIndex: 3 }, bridgeWithTable());
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed.success).toBe(true);
+  });
+});
+
+// =============================================================================
+// insert_text_at_match rejects empty text
+// =============================================================================
+describe('insert_text_at_match validates text', () => {
+  const handler = handlers.get('word_insert_text_at_match')!;
+
+  test('rejects empty text', async () => {
+    await expect(handler({ text: '', after: 'hello' }, mockBridge()))
+      .rejects.toThrow('non-empty');
+  });
+
+  test('rejects whitespace-only text', async () => {
+    await expect(handler({ text: '   ', after: 'hello' }, mockBridge()))
+      .rejects.toThrow('non-empty');
+  });
+
+  test('accepts non-empty text', async () => {
+    const bridge = mockBridge();
+    const result = await handler({ text: 'world', after: 'hello' }, bridge);
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed.success).toBe(true);
+  });
+});
+
+// =============================================================================
+// set_paragraph_style requires at least one of style/alignment
+// =============================================================================
+describe('set_paragraph_style requires style or alignment', () => {
+  const handler = handlers.get('word_set_paragraph_style')!;
+
+  test('rejects when neither style nor alignment provided', async () => {
+    await expect(handler({ index: 0 }, mockBridge()))
+      .rejects.toThrow('At least one');
+  });
+
+  test('accepts style alone', async () => {
+    const bridge = mockBridge();
+    const result = await handler({ index: 0, style: 'Normal' }, bridge);
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed.success).toBe(true);
+  });
+
+  test('accepts alignment alone', async () => {
+    const bridge = mockBridge();
+    const result = await handler({ index: 0, alignment: 'Center' }, bridge);
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed.success).toBe(true);
+  });
+});
+
+// =============================================================================
+// Table tool server-side validators
+// =============================================================================
+describe('table tool server-side validators', () => {
+  const insertTable = handlers.get('word_insert_table')!;
+  const setCell = handlers.get('word_set_table_cell')!;
+  const deleteRow = handlers.get('word_delete_table_row')!;
+  const mergeCells = handlers.get('word_merge_table_cells')!;
+  const splitCell = handlers.get('word_split_table_cell')!;
+  const shading = handlers.get('word_set_table_cell_shading')!;
+
+  test('insertTable rejects rows <= 0', async () => {
+    await expect(insertTable({ rows: 0, cols: 3 }, mockBridge()))
+      .rejects.toThrow('rows must be a positive integer');
+  });
+
+  test('insertTable rejects cols > 63', async () => {
+    await expect(insertTable({ rows: 1, cols: 64 }, mockBridge()))
+      .rejects.toThrow('cols must not exceed 63');
+  });
+
+  test('insertTable rejects data row count mismatch', async () => {
+    await expect(insertTable({ rows: 2, cols: 2, data: [['a', 'b']] }, mockBridge()))
+      .rejects.toThrow('Data rows');
+  });
+
+  test('insertTable rejects data column count mismatch', async () => {
+    await expect(insertTable({ rows: 1, cols: 2, data: [['a']] }, mockBridge()))
+      .rejects.toThrow('columns but expected');
+  });
+
+  test('insertTable accepts valid input', async () => {
+    const bridge = mockBridge();
+    const result = await insertTable({ rows: 2, cols: 2, data: [['a', 'b'], ['c', 'd']] }, bridge);
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed.success).toBe(true);
+  });
+
+  test('setTableCell rejects negative tableIndex', async () => {
+    await expect(setCell({ tableIndex: -1, row: 0, col: 0, text: 'x' }, mockBridge()))
+      .rejects.toThrow('non-negative integer');
+  });
+
+  test('setTableCell rejects negative row', async () => {
+    await expect(setCell({ tableIndex: 0, row: -1, col: 0, text: 'x' }, mockBridge()))
+      .rejects.toThrow('non-negative integer');
+  });
+
+  test('deleteTableRow rejects negative indices', async () => {
+    await expect(deleteRow({ tableIndex: -1, rowIndex: 0 }, mockBridge()))
+      .rejects.toThrow('non-negative integer');
+  });
+
+  test('mergeCells rejects topRow > bottomRow', async () => {
+    await expect(mergeCells({ tableIndex: 0, topRow: 3, firstCell: 0, bottomRow: 1, lastCell: 2 }, mockBridge()))
+      .rejects.toThrow('topRow');
+  });
+
+  test('mergeCells rejects single cell', async () => {
+    await expect(mergeCells({ tableIndex: 0, topRow: 0, firstCell: 0, bottomRow: 0, lastCell: 0 }, mockBridge()))
+      .rejects.toThrow('single cell');
+  });
+
+  test('splitCell rejects negative col', async () => {
+    await expect(splitCell({ tableIndex: 0, row: 0, col: -1 }, mockBridge()))
+      .rejects.toThrow('non-negative integer');
+  });
+
+  test('splitCell rejects colCount <= 0', async () => {
+    await expect(splitCell({ tableIndex: 0, row: 0, col: 0, colCount: 0 }, mockBridge()))
+      .rejects.toThrow('colCount must be a positive integer');
+  });
+
+  test('shading rejects invalid hex color', async () => {
+    await expect(shading({ tableIndex: 0, row: 0, col: 0, color: 'red' }, mockBridge()))
+      .rejects.toThrow('hex color');
+  });
+
+  test('shading accepts valid hex color', async () => {
+    const bridge = mockBridge();
+    const result = await shading({ tableIndex: 0, row: 0, col: 0, color: '#FF0000' }, bridge);
     const parsed = JSON.parse(result.content[0].text);
     expect(parsed.success).toBe(true);
   });

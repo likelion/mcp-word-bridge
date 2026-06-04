@@ -87,4 +87,37 @@ export const ooxmlCommands: Record<string, CommandHandler> = {
     await ctx.sync();
     return { success: true };
   },
+
+  async insertOoxmlAfterMatch(ctx, p) {
+    if (!p.ooxml || typeof p.ooxml !== 'string' || p.ooxml.trim() === '')
+      throw new Error('ooxml parameter must be a non-empty string');
+    if (!p.anchorText || typeof p.anchorText !== 'string' || p.anchorText.trim() === '')
+      throw new Error('anchorText must be a non-empty string');
+    const results = ctx.document.body.search(p.anchorText, { matchCase: p.matchCase || false });
+    results.load('text');
+    await ctx.sync();
+    if (results.items.length === 0) throw new Error('Anchor not found: ' + p.anchorText);
+    const idx = p.occurrence || 0;
+    if (idx >= results.items.length)
+      throw new Error(`Occurrence ${idx} not found (only ${results.items.length} match${results.items.length === 1 ? '' : 'es'})`);
+    const target = results.items[idx];
+    // Insert a space after the anchor, then position cursor there for OOXML insertion
+    const endRange = target.getRange('End');
+    const spaceRange = endRange.insertText(' ', Word.InsertLocation.after);
+    await ctx.sync();
+    // Select end of space range, then insert OOXML at cursor
+    spaceRange.getRange('End').select();
+    await ctx.sync();
+    const sel = ctx.document.getSelection();
+    sel.insertOoxml(p.ooxml, Word.InsertLocation.end);
+    sel.getRange('End').select();
+    try {
+      await ctx.sync();
+    } catch (e: any) {
+      if (e.message?.includes('GeneralException'))
+        throw new Error('Invalid OOXML for inline equation insertion.');
+      throw e;
+    }
+    return { success: true };
+  },
 };

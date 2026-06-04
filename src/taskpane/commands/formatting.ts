@@ -7,7 +7,7 @@ export const formattingCommands: Record<string, CommandHandler> = {
     checkNonEmptyString(p.text, 'text');
     // Require at least one formatting property
     const hasFormatting = p.bold !== undefined || p.italic !== undefined || p.underline !== undefined ||
-      p.strikeThrough !== undefined || p.color || p.highlightColor || p.size || p.name;
+      p.strikeThrough !== undefined || p.color !== undefined || p.highlightColor !== undefined || p.size !== undefined || p.name !== undefined;
     if (!hasFormatting) throw new Error('At least one formatting property must be specified (bold, italic, underline, strikeThrough, color, highlightColor, size, or name).');
     if (p.size !== undefined && p.size <= 0) throw new Error('size must be positive');
     if (p.size !== undefined && p.size > 1638) throw new Error('size must not exceed 1638 points (Word maximum)');

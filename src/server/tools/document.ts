@@ -34,6 +34,23 @@ export const setDocumentProperties = forwardTool(
     },
   },
   'setDocumentProperties',
+  (args) => {
+    const hasProperty =
+      args.title !== undefined ||
+      args.subject !== undefined ||
+      args.author !== undefined ||
+      args.keywords !== undefined ||
+      args.comments !== undefined ||
+      args.category !== undefined ||
+      args.company !== undefined ||
+      args.manager !== undefined ||
+      args.format !== undefined;
+    if (!hasProperty) {
+      throw new ToolError(
+        'At least one document property must be provided (title, subject, author, keywords, comments, category, company, manager, format).',
+      );
+    }
+  },
 );
 
 export const save = forwardTool(

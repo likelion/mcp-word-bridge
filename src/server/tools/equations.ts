@@ -1,8 +1,6 @@
 import type { ToolDefinition } from '../types';
-import { ToolError } from '../types';
 import { jsonResult } from './helpers';
-import { checkOccurrence } from '../validation';
-import type { SearchResult } from '../../shared/protocol';
+import { checkNonEmpty } from '../validation';
 
 // Lazy-loaded dependencies (heavy, only needed for equations)
 let latexToOmml: typeof import('../../lib/equations').latexToOmml;
@@ -15,8 +13,6 @@ async function loadEquationLib() {
     buildEquationOoxml = lib.buildEquationOoxml;
   }
 }
-
-const MARKER = '\u200B\uFEFF\u200B';
 
 export const insertEquation: ToolDefinition = {
   name: 'word_insert_equation',
@@ -37,6 +33,7 @@ export const insertEquation: ToolDefinition = {
     const { mml2omml } = await import('mathml2omml');
 
     const latex = args.latex as string;
+    checkNonEmpty(latex, 'latex');
     const displayMode = args.displayMode !== false;
 
     let result;
@@ -55,17 +52,9 @@ export const insertEquation: ToolDefinition = {
     } else if (args.anchorText) {
       const anchorText = args.anchorText as string;
       const matchCase = (args.matchCase as boolean) || false;
+      const occurrence = (args.occurrence as number) ?? 0;
 
-      const searchResult = await bridge.send<SearchResult>('search', { query: anchorText, matchCase });
-      if (!searchResult || searchResult.count === 0) throw new ToolError('Anchor not found: ' + anchorText);
-      const occurrence = checkOccurrence(args.occurrence as number | undefined, searchResult.count);
-
-      await bridge.send('insertText', { text: ' ' + MARKER, after: anchorText, occurrence, matchCase });
-      try {
-        await bridge.send('insertOoxmlAtSelection', { ooxml });
-      } finally {
-        await bridge.send('searchAndReplace', { find: MARKER, replace: '' });
-      }
+      await bridge.send('insertOoxmlAfterMatch', { ooxml, anchorText, occurrence, matchCase });
     } else {
       await bridge.send('insertOoxmlAtSelection', { ooxml });
     }
