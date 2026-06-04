@@ -1,5 +1,5 @@
 import type { CommandHandler } from './index';
-import { sanitizeText, checkIndex, checkAlignment, checkStyleExists } from './document';
+import { sanitizeText, checkIndex, checkAlignment, checkStyleExists, normalizeAlignmentOutput } from './document';
 
 /** Detect if a paragraph is a TOC entry based on style and text pattern */
 function isTocEntry(style: string, text: string): boolean {
@@ -40,7 +40,7 @@ export const paragraphCommands: Record<string, CommandHandler> = {
       }
       const isToc = isTocEntry(para.style, para.text);
       const resolvedStyle = resolveStyle(para.style, para.outlineLevel);
-      items.push({ index: i, text: sanitizeText(para.text), style: resolvedStyle, alignment: para.alignment, isListItem: para.isListItem, inTable, isTocEntry: isToc, outlineLevel: para.outlineLevel });
+      items.push({ index: i, text: sanitizeText(para.text), style: resolvedStyle, alignment: normalizeAlignmentOutput(para.alignment), isListItem: para.isListItem, inTable, isTocEntry: isToc, outlineLevel: para.outlineLevel });
     }
     const result: any = { total: paragraphs.items.length, count: items.length, paragraphs: items };
     if (p.start !== undefined && p.start >= paragraphs.items.length) {
@@ -61,7 +61,7 @@ export const paragraphCommands: Record<string, CommandHandler> = {
     await ctx.sync();
     let inTable = false;
     try { inTable = para.parentTableCellOrNullObject && !para.parentTableCellOrNullObject.isNullObject; } catch { inTable = false; }
-    return { text: sanitizeText(para.text), style: para.style, alignment: para.alignment, firstLineIndent: para.firstLineIndent, leftIndent: para.leftIndent, rightIndent: para.rightIndent, lineSpacing: para.lineSpacing, spaceBefore: para.spaceBefore, spaceAfter: para.spaceAfter, outlineLevel: para.outlineLevel, isListItem: para.isListItem, inTable, font: { name: para.font.name, size: para.font.size, bold: para.font.bold, italic: para.font.italic, color: para.font.color, underline: para.font.underline } };
+    return { text: sanitizeText(para.text), style: para.style, alignment: normalizeAlignmentOutput(para.alignment), firstLineIndent: para.firstLineIndent, leftIndent: para.leftIndent, rightIndent: para.rightIndent, lineSpacing: para.lineSpacing, spaceBefore: para.spaceBefore, spaceAfter: para.spaceAfter, outlineLevel: para.outlineLevel, isListItem: para.isListItem, inTable, font: { name: para.font.name || null, size: para.font.size ?? null, bold: para.font.bold, italic: para.font.italic, color: para.font.color || null, underline: para.font.underline || null } };
   },
 
   async insertParagraph(ctx, p) {

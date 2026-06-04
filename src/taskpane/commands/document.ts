@@ -56,12 +56,22 @@ const ALIGNMENT_MAP: Record<string, string> = {
   right: 'Right', justify: 'Justified', justified: 'Justified',
 };
 
+/** Reverse map: Word API values → canonical output values */
+const ALIGNMENT_OUTPUT_MAP: Record<string, string> = {
+  'Centered': 'Center',
+};
+
 /** Normalize and validate alignment value. Returns null if undefined. */
 export function checkAlignment(value: string | undefined): string | null {
   if (!value) return null;
   const mapped = ALIGNMENT_MAP[value.toLowerCase()];
   if (!mapped) throw new Error(`Invalid alignment: "${value}". Valid values: Left, Center, Right, Justified.`);
   return mapped;
+}
+
+/** Normalize Word API alignment value to canonical output form. */
+export function normalizeAlignmentOutput(value: string): string {
+  return ALIGNMENT_OUTPUT_MAP[value] ?? value;
 }
 
 /** Validate style exists in the document. Returns once confirmed or throws. */

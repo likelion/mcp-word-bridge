@@ -18,7 +18,7 @@ export const getParagraphs = forwardTool(
 
 export const getParagraphByIndex = forwardTool(
   'word_get_paragraph_by_index',
-  '[Paragraphs] Get full details of a single paragraph including font, spacing, indentation, and outline level.',
+  '[Paragraphs] Get full details of a single paragraph including font, spacing, indentation, and outline level. Font properties return null when the paragraph has mixed formatting (e.g. partially bold).',
   {
     properties: {
       index: { type: 'number', description: 'Paragraph index (0-based)' },
@@ -117,6 +117,20 @@ export const setParagraphSpacing: ToolDefinition = {
     const index = args.index as number;
     checkNonNegative(index, 'index');
 
+    // Require at least one spacing/indent property
+    const hasProperty =
+      args.lineSpacing !== undefined ||
+      args.spaceBefore !== undefined ||
+      args.spaceAfter !== undefined ||
+      args.firstLineIndent !== undefined ||
+      args.leftIndent !== undefined ||
+      args.rightIndent !== undefined;
+    if (!hasProperty) {
+      throw new ToolError(
+        'At least one spacing or indent property must be provided (lineSpacing, spaceBefore, spaceAfter, firstLineIndent, leftIndent, rightIndent).',
+      );
+    }
+
     // Validate bounds on spacing and indent values
     const spacingFields: Array<[string, unknown]> = [
       ['lineSpacing', args.lineSpacing],
@@ -183,6 +197,16 @@ export const moveParagraph: ToolDefinition = {
       if (para.index >= fromIndex && para.index < fromIndex + count && para.inTable) {
         throw new ToolError(`Paragraph ${para.index} is inside a table cell. Use table-specific tools to modify table content.`);
       }
+    }
+
+    // Reject moves targeting table-internal paragraphs (would corrupt table structure)
+    const destPara = paraCount.paragraphs.find(p => p.index === toIndex);
+    if (destPara?.inTable) {
+      throw new ToolError(
+        `Destination paragraph ${toIndex} is inside a table cell. ` +
+        `Moving content here would corrupt table structure. ` +
+        `Use table-specific tools or target a paragraph outside the table.`,
+      );
     }
 
     // Reject move of the mandatory trailing paragraph (Word auto-recreates it, causing duplication)
@@ -264,6 +288,16 @@ export const copyParagraph: ToolDefinition = {
       if (para.index >= fromIndex && para.index < fromIndex + count && para.inTable) {
         throw new ToolError(`Paragraph ${para.index} is inside a table cell. Use table-specific tools to modify table content.`);
       }
+    }
+
+    // Reject copies targeting table-internal paragraphs (would corrupt table structure)
+    const destPara = paraCount.paragraphs.find(p => p.index === toIndex);
+    if (destPara?.inTable) {
+      throw new ToolError(
+        `Destination paragraph ${toIndex} is inside a table cell. ` +
+        `Copying content here would corrupt table structure. ` +
+        `Use table-specific tools or target a paragraph outside the table.`,
+      );
     }
 
     const ooxmlResult = await bridge.send<OoxmlResult>('getParaOoxml', { index: fromIndex, count });

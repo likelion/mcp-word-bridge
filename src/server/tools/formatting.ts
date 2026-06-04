@@ -1,5 +1,51 @@
 import type { ToolDefinition } from '../types';
+import { ToolError } from '../types';
 import { forwardTool } from './helpers';
+import { checkNonEmpty, checkHexColor } from '../validation';
+
+/** Validate highlight color is a named Word color */
+const HIGHLIGHT_COLORS = ['Yellow', 'Green', 'Cyan', 'Magenta', 'Blue', 'Red', 'DarkBlue', 'DarkCyan', 'DarkGreen', 'DarkMagenta', 'DarkRed', 'DarkYellow', 'Gray25', 'Gray50', 'Black', 'White', 'NoHighlight'];
+
+function validateFormatText(args: Record<string, unknown>): void {
+  checkNonEmpty(args.text, 'text');
+
+  const hasFormatting =
+    args.bold !== undefined ||
+    args.italic !== undefined ||
+    args.underline !== undefined ||
+    args.strikeThrough !== undefined ||
+    args.color !== undefined ||
+    args.highlightColor !== undefined ||
+    args.size !== undefined ||
+    args.name !== undefined;
+
+  if (!hasFormatting) {
+    throw new ToolError(
+      'At least one formatting property must be specified (bold, italic, underline, strikeThrough, color, highlightColor, size, or name).',
+    );
+  }
+
+  if (args.size !== undefined) {
+    const size = args.size as number;
+    if (size <= 0) throw new ToolError('size must be positive (minimum 1 point).');
+    if (size > 1638) throw new ToolError('size must not exceed 1638 points (Word maximum).');
+    if (!Number.isFinite(size)) throw new ToolError('size must be a finite number.');
+  }
+
+  if (args.color !== undefined) {
+    checkHexColor(args.color as string, 'color');
+  }
+
+  if (args.highlightColor !== undefined) {
+    const hc = args.highlightColor as string;
+    const isNamed = HIGHLIGHT_COLORS.some(c => c.toLowerCase() === hc.toLowerCase());
+    if (!isNamed) {
+      throw new ToolError(
+        `Invalid highlightColor: "${hc}". Valid values: ${HIGHLIGHT_COLORS.join(', ')}.`,
+      );
+    }
+  }
+}
 
 export const formatText = forwardTool(
   'word_format_text',
@@ -21,6 +67,7 @@ export const formatText = forwardTool(
     required: ['text'],
   },
   'formatRange',
+  validateFormatText,
 );
 
 export const clearFormatting = forwardTool(

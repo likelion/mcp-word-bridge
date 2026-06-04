@@ -42,6 +42,8 @@ Controls a live Word document. All operations execute immediately.
 \`\`\`
 Runs sequentially. Stops on first error. Maximum 50 per batch. Prefer batching over individual calls.
 
+**Index caveat:** Paragraph indices are NOT auto-adjusted between operations. Multiple inserts at the same index produce reversed order (last inserted appears first). To insert A, B, C in order at position 5, either increment the index or insert in reverse.
+
 ## Search
 
 - Case-insensitive by default. Pass \`matchCase: true\` for exact case.
@@ -102,4 +104,13 @@ After inserting a Table of Contents, heading text appears twice (in TOC and body
 6. Use \`word_copy_paragraph\` to duplicate (preserves everything)
 7. Save explicitly after significant changes
 8. Resolve comments rather than deleting (preserves audit trail)
+
+## Alignment Values
+
+Input accepts case-insensitive: "left", "center", "right", "justified".
+Output always uses canonical form: "Left", "Center", "Right", "Justified".
+
+## Mixed Formatting
+
+\`word_get_paragraph_by_index\` returns \`null\` for font properties when the paragraph has mixed formatting (e.g. partially bold). Treat \`null\` as "mixed" — use \`word_get_font_info\` with a specific text match for precise values.
 `;

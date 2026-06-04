@@ -266,7 +266,7 @@ npm install
 npm run build        # build server + taskpane
 npm run dev          # watch mode
 npm run typecheck    # TypeScript type checking
-npm test             # unit tests (67 tests, <500ms)
+npm test             # unit tests (272 tests, <600ms)
 npm run test:live    # integration tests (requires Word)
 ```
 
@@ -299,8 +299,9 @@ Platform constraints in the Word JavaScript API that cannot be resolved in this 
 | Tracked Changes | `getTrackedChanges()` throws if the document contains "moved" tracked changes (drag-and-drop reorders). These produce paired "moved from"/"moved to" entries that the API cannot handle. | [office-js#5535](https://github.com/OfficeDev/office-js/issues/5535) |
 | Highlight Colors | `highlightColor` only supports 17 named colors (Yellow, Green, Cyan, Magenta, Blue, Red, DarkBlue, DarkCyan, DarkGreen, DarkMagenta, DarkRed, DarkYellow, Gray25, Gray50, Black, White, NoHighlight). The Word API documentation claims `#RRGGBB` is accepted, but Desktop silently maps hex values to the nearest named color. This tool rejects hex to prevent silent mismatch — use `color` for arbitrary RGB. | [office-js#4638](https://github.com/OfficeDev/office-js/issues/4638) |
 | Paragraph Style | TOC field entries and certain table paragraphs return `style: ""` (empty string) instead of the actual style name. Paragraphs are flagged with `isTocEntry: true` when detected as TOC entries. Use this flag rather than the style field for identification. | [office-js#5934](https://github.com/OfficeDev/office-js/issues/5934) |
-| Page Info | `word_get_page_info` requires WordApiDesktop 1.2+ (Word for Windows/Mac desktop). Not available on Word for the web. |  |
-| Undo | The Word JavaScript API does not expose a programmatic `undo()` method. Changes made by the add-in appear in Word's undo stack (Ctrl+Z works for the user), but there is no way to trigger undo from code. |  |
+| Mixed Formatting | `word_get_paragraph_by_index` returns `null` for font properties (`bold`, `italic`, `size`, etc.) when the paragraph contains mixed formatting (e.g. partially bold text). This is the Word API's way of indicating "no single value" — treat `null` as "mixed". | [Word.Font docs](https://learn.microsoft.com/en-us/javascript/api/word/word.font?view=word-js-preview) |
+| Page Info | `word_get_page_info` requires WordApiDesktop 1.2+ (Word for Windows/Mac desktop). Not available on Word for the web. | [WordApiDesktop 1.2](https://learn.microsoft.com/en-us/javascript/api/requirement-sets/word/word-api-desktop-1-2-requirement-set) |
+| Undo | The Word JavaScript API does not expose a programmatic `undo()` method. Changes made by the add-in appear in Word's undo stack (Ctrl+Z works for the user), but there is no way to trigger undo from code. | [Stack Overflow](https://stackoverflow.com/questions/58440921/accessing-the-undo-stack-from-word-javascript-api) |
 
 ## License
 

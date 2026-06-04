@@ -1,5 +1,6 @@
 import type { ToolDefinition } from '../types';
 import { forwardTool } from './helpers';
+import { checkNonEmpty } from '../validation';
 
 export const addComment = forwardTool(
   'word_add_comment',
@@ -14,6 +15,10 @@ export const addComment = forwardTool(
     required: ['anchorText', 'comment'],
   },
   'addComment',
+  (args) => {
+    checkNonEmpty(args.anchorText, 'anchorText');
+    checkNonEmpty(args.comment, 'comment');
+  },
 );
 
 export const getComments = forwardTool(
@@ -46,6 +51,9 @@ export const replyToComment = forwardTool(
     required: ['commentId', 'text'],
   },
   'replyToComment',
+  (args) => {
+    checkNonEmpty(args.text, 'text');
+  },
 );
 
 export const resolveComment = forwardTool(

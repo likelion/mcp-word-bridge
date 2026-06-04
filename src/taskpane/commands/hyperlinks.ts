@@ -50,7 +50,12 @@ export const hyperlinkCommands: Record<string, CommandHandler> = {
         fields.items[i].result.load('text');
         await ctx.sync();
         const rawText = fields.items[i].result.text || '';
-        const cleanText = rawText.replace(/[\u0001\u0002\u0013\u0014\u0015]/g, '').replace(/\s{2,}/g, ' ').trim();
+        // Strip control chars, nested PAGEREF field codes, and excess whitespace
+        const cleanText = rawText
+          .replace(/[\u0001\u0002\u0013\u0014\u0015]/g, '')
+          .replace(/\s*PAGEREF\s+\S+\s*(\\[a-z]\s*)*/gi, '')
+          .replace(/\s{2,}/g, ' ')
+          .trim();
         links.push({ index: i, url, text: cleanText, internal: isInternal });
       }
     }

@@ -19,7 +19,7 @@ export function createBatchTool(
 ): ToolDefinition {
   return {
     name: 'word_batch',
-    description: '[Batch] Execute multiple operations in a single call. Operations execute sequentially — if one fails, subsequent are skipped.',
+    description: '[Batch] Execute multiple operations in a single call. Operations execute sequentially — if one fails, subsequent are skipped. Note: paragraph indices are NOT auto-adjusted between operations. Multiple inserts at the same index will produce reversed order (last inserted appears first).',
     schema: {
       properties: {
         operations: {

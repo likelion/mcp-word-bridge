@@ -45,7 +45,17 @@ export const tableCommands: Record<string, CommandHandler> = {
     tables.load('rowCount,values');
     await ctx.sync();
     if (p.index >= tables.items.length) throw new Error(`Table index out of range. Document has ${tables.items.length} table(s).`);
-    return { values: tables.items[p.index].values };
+    const values = tables.items[p.index].values;
+    // Normalize ragged arrays (from merged cells) to consistent column count
+    if (values && values.length > 0) {
+      const maxCols = Math.max(...values.map((row: string[]) => row.length));
+      for (let i = 0; i < values.length; i++) {
+        while (values[i].length < maxCols) {
+          values[i].push('');
+        }
+      }
+    }
+    return { values };
   },
 
   async setTableCell(ctx, p) {
@@ -103,6 +113,7 @@ export const tableCommands: Record<string, CommandHandler> = {
     rows.load('items');
     await ctx.sync();
     if (p.rowIndex >= rows.items.length) throw new Error(`Row index out of range. Table has ${rows.items.length} rows (0-indexed).`);
+    if (rows.items.length === 1) throw new Error('Cannot delete the last row — this would destroy the entire table. Use word_set_table_cell to clear cell content instead.');
     rows.items[p.rowIndex].delete();
     await ctx.sync();
     return { success: true };

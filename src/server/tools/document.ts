@@ -45,7 +45,7 @@ export const save = forwardTool(
 
 export const clear = forwardTool(
   'word_clear',
-  '[Document] Clear all document body content. Does not clear headers/footers or custom properties.',
+  '[Document] Clear all document body content. Does not clear headers/footers or custom properties. In multi-section documents, section breaks are removed and the last section\'s layout (margins, orientation) is preserved.',
   { properties: {} },
   'clearDocument',
 );

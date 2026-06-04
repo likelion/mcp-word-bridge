@@ -1177,3 +1177,148 @@ describe('Equations handler', () => {
       .rejects.toThrow('Anchor not found');
   });
 });
+
+// =============================================================================
+// format_text server-side validation
+// =============================================================================
+describe('format_text server-side validation', () => {
+  const handler = handlers.get('word_format_text')!;
+  const bridge = mockBridge();
+
+  test('size=0 as only property throws "size must be positive"', async () => {
+    await expect(handler({ text: 'hello', size: 0 }, bridge))
+      .rejects.toThrow('size must be positive');
+  });
+
+  test('size=0 with bold=true still throws "size must be positive"', async () => {
+    await expect(handler({ text: 'hello', size: 0, bold: true }, bridge))
+      .rejects.toThrow('size must be positive');
+  });
+
+  test('no formatting properties throws correct error', async () => {
+    await expect(handler({ text: 'hello' }, bridge))
+      .rejects.toThrow('At least one formatting property');
+  });
+
+  test('size=1 is accepted', async () => {
+    const result = await handler({ text: 'hello', size: 1 }, bridge);
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed.success).toBe(true);
+  });
+
+  test('size=1639 is rejected', async () => {
+    await expect(handler({ text: 'hello', size: 1639 }, bridge))
+      .rejects.toThrow('must not exceed 1638');
+  });
+
+  test('invalid hex color is rejected', async () => {
+    await expect(handler({ text: 'hello', color: '#ZZZZZZ' }, bridge))
+      .rejects.toThrow('valid hex color');
+  });
+
+  test('invalid highlightColor is rejected', async () => {
+    await expect(handler({ text: 'hello', highlightColor: 'Purple' }, bridge))
+      .rejects.toThrow('Invalid highlightColor');
+  });
+
+  test('empty text is rejected', async () => {
+    await expect(handler({ text: '', bold: true }, bridge))
+      .rejects.toThrow('must be a non-empty string');
+  });
+});
+
+// =============================================================================
+// reply_to_comment rejects empty text
+// =============================================================================
+describe('reply_to_comment server-side validation', () => {
+  const handler = handlers.get('word_reply_to_comment')!;
+  const bridge = mockBridge();
+
+  test('empty text is rejected', async () => {
+    await expect(handler({ commentId: '123', text: '' }, bridge))
+      .rejects.toThrow('must be a non-empty string');
+  });
+
+  test('whitespace-only text is rejected', async () => {
+    await expect(handler({ commentId: '123', text: '   ' }, bridge))
+      .rejects.toThrow('must be a non-empty string');
+  });
+
+  test('valid text is accepted', async () => {
+    const result = await handler({ commentId: '123', text: 'Good point!' }, bridge);
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed.success).toBe(true);
+  });
+});
+
+// =============================================================================
+// set_paragraph_spacing requires at least one property
+// =============================================================================
+describe('set_paragraph_spacing requires at least one property', () => {
+  const handler = handlers.get('word_set_paragraph_spacing')!;
+  const bridge = mockBridge();
+
+  test('no properties throws correct error', async () => {
+    await expect(handler({ index: 0 }, bridge))
+      .rejects.toThrow('At least one spacing or indent property');
+  });
+
+  test('lineSpacing alone is accepted', async () => {
+    const result = await handler({ index: 0, lineSpacing: 12 }, bridge);
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed.success).toBe(true);
+  });
+
+  test('firstLineIndent alone is accepted', async () => {
+    const result = await handler({ index: 0, firstLineIndent: 36 }, bridge);
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed.success).toBe(true);
+  });
+});
+
+// =============================================================================
+// move/copy rejects table-internal destination
+// =============================================================================
+describe('move/copy rejects table-internal destination', () => {
+  const { handlers: h } = buildToolRegistry();
+  const moveHandler = h.get('word_move_paragraph')!;
+  const copyHandler = h.get('word_copy_paragraph')!;
+
+  function bridgeWithTable(): any {
+    return {
+      send: async (action: string) => {
+        if (action === 'getParagraphs') {
+          return {
+            total: 5,
+            count: 5,
+            paragraphs: [
+              { index: 0, text: 'Before', inTable: false },
+              { index: 1, text: 'Cell', inTable: true },
+              { index: 2, text: 'Cell2', inTable: true },
+              { index: 3, text: 'After', inTable: false },
+              { index: 4, text: 'End', inTable: false },
+            ],
+          };
+        }
+        if (action === 'getParaOoxml') return { ooxml: '<pkg:package></pkg:package>' };
+        return { success: true };
+      },
+    };
+  }
+
+  test('move to table cell destination is rejected', async () => {
+    await expect(moveHandler({ fromIndex: 0, toIndex: 1 }, bridgeWithTable()))
+      .rejects.toThrow('inside a table cell');
+  });
+
+  test('copy to table cell destination is rejected', async () => {
+    await expect(copyHandler({ fromIndex: 3, toIndex: 2 }, bridgeWithTable()))
+      .rejects.toThrow('inside a table cell');
+  });
+
+  test('move to non-table destination is allowed', async () => {
+    const result = await moveHandler({ fromIndex: 0, toIndex: 3 }, bridgeWithTable());
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed.success).toBe(true);
+  });
+});

@@ -3,7 +3,7 @@ import { forwardTool } from './helpers';
 
 export const insertList = forwardTool(
   'word_insert_list',
-  '[Lists] Insert a bulleted or numbered list from an array of item strings.',
+  '[Lists] Insert a bulleted or numbered list from an array of item strings. Text is inserted literally (Word search codes like ^p or ^t are NOT interpreted).',
   {
     properties: {
       items: { type: 'array', items: { type: 'string' }, description: 'List item strings' },
