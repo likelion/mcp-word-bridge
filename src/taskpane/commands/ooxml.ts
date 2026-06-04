@@ -80,16 +80,10 @@ export const ooxmlCommands: Record<string, CommandHandler> = {
     if (p.index >= paragraphs.items.length)
       throw new Error(`Paragraph index out of range. Valid indices: 0-${paragraphs.items.length - 1} (document has ${paragraphs.items.length} paragraphs).`);
 
-    // Strategy: select the target position, then insert OOXML replacing the empty selection.
-    // This uses the selection-based approach which handles all relationship types correctly.
     const ref = paragraphs.items[p.index];
-    const location = p.location === 'Before' ? 'Start' : 'End';
-    const targetRange = ref.getRange(location);
-    targetRange.select();
-    await ctx.sync();
-
-    const sel = ctx.document.getSelection();
-    sel.insertOoxml(p.ooxml, 'Replace');
+    const location = p.location === 'Before' ? Word.InsertLocation.before : Word.InsertLocation.after;
+    const range = ref.getRange('Whole');
+    range.insertOoxml(p.ooxml, location);
     await ctx.sync();
     return { success: true };
   },

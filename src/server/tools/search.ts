@@ -4,12 +4,17 @@ import { forwardTool, jsonResult } from './helpers';
 
 export const search = forwardTool(
   'word_search',
-  '[Search] Find text in the document. Returns match count and up to 30 matches. Query must be ≤255 chars. Note: Word search codes (^p = paragraph mark, ^t = tab) are interpreted. To search for literal "^", use "^^".',
+  '[Search] Find text in the document. Returns match count and up to 30 matches. Query must be ≤255 chars. Supports Word search codes (^p = paragraph mark, ^t = tab, etc.) and wildcard mode (?, *, [], {n,m}). To search for literal "^", use "^^".',
   {
     properties: {
       query: { type: 'string' },
       matchCase: { type: 'boolean', description: 'Case-sensitive search. Default: false' },
-      matchWholeWord: { type: 'boolean' },
+      matchWholeWord: { type: 'boolean', description: 'Match whole words only. Default: false' },
+      matchWildcards: { type: 'boolean', description: 'Enable wildcard/regex search (?, *, [], {n,m}, @). Default: false' },
+      matchPrefix: { type: 'boolean', description: 'Match words that begin with the search string. Default: false' },
+      matchSuffix: { type: 'boolean', description: 'Match words that end with the search string. Default: false' },
+      ignorePunct: { type: 'boolean', description: 'Ignore punctuation between words when matching. Default: false' },
+      ignoreSpace: { type: 'boolean', description: 'Ignore whitespace between words when matching. Default: false' },
     },
     required: ['query'],
   },
@@ -18,13 +23,18 @@ export const search = forwardTool(
 
 export const searchAndReplace: ToolDefinition = {
   name: 'word_search_and_replace',
-  description: '[Search] Find and replace ALL occurrences. Supports Word search codes (^p = paragraph mark, ^t = tab). For single-paragraph edits, prefer word_replace_paragraph_text.',
+  description: '[Search] Find and replace ALL occurrences. Supports Word search codes in both find and replace: ^p (paragraph mark), ^l (line break), ^m (page break), ^n (column break), ^t (tab), ^s (non-breaking space), ^~ (non-breaking hyphen), ^- (optional hyphen), ^+ (em dash), ^= (en dash), ^^ (literal caret). Supports wildcard search in find string. For single-paragraph edits, prefer word_replace_paragraph_text.',
   schema: {
     properties: {
       find: { type: 'string' },
       replace: { type: 'string' },
       matchCase: { type: 'boolean', description: 'Default: false' },
-      matchWholeWord: { type: 'boolean' },
+      matchWholeWord: { type: 'boolean', description: 'Match whole words only. Default: false' },
+      matchWildcards: { type: 'boolean', description: 'Enable wildcard/regex search in find string (?, *, [], {n,m}, @). Default: false' },
+      matchPrefix: { type: 'boolean', description: 'Match words that begin with the find string. Default: false' },
+      matchSuffix: { type: 'boolean', description: 'Match words that end with the find string. Default: false' },
+      ignorePunct: { type: 'boolean', description: 'Ignore punctuation between words when matching. Default: false' },
+      ignoreSpace: { type: 'boolean', description: 'Ignore whitespace between words when matching. Default: false' },
       preserveBookmarks: { type: 'boolean', description: 'Re-create bookmarks on replacement text after replace. Default: false' },
     },
     required: ['find', 'replace'],
@@ -43,7 +53,7 @@ export const searchAndReplace: ToolDefinition = {
 
 export const insertTextAtMatch = forwardTool(
   'word_insert_text_at_match',
-  '[Search] Insert text before or after a search match. Provide "after" OR "before" as the anchor text. Use occurrence for Nth match.',
+  '[Search] Insert text before or after a search match. Supports Word search codes in inserted text: ^p (paragraph mark), ^l (line break), ^t (tab), ^s (non-breaking space), ^m (page break), ^n (column break), ^~ (non-breaking hyphen), ^- (optional hyphen), ^+ (em dash), ^= (en dash), ^^ (literal caret). Provide "after" OR "before" as the anchor text. Use occurrence for Nth match.',
   {
     properties: {
       text: { type: 'string', description: 'Text to insert' },
@@ -51,6 +61,11 @@ export const insertTextAtMatch = forwardTool(
       before: { type: 'string', description: 'Search for this text and insert BEFORE it' },
       occurrence: { type: 'number', description: '0=first, 1=second, etc. Default: 0' },
       matchCase: { type: 'boolean', description: 'Default: false' },
+      matchWildcards: { type: 'boolean', description: 'Enable wildcard/regex search for anchor text. Default: false' },
+      matchPrefix: { type: 'boolean', description: 'Match words that begin with the anchor text. Default: false' },
+      matchSuffix: { type: 'boolean', description: 'Match words that end with the anchor text. Default: false' },
+      ignorePunct: { type: 'boolean', description: 'Ignore punctuation between words when matching. Default: false' },
+      ignoreSpace: { type: 'boolean', description: 'Ignore whitespace between words when matching. Default: false' },
     },
     required: ['text'],
   },

@@ -42,18 +42,24 @@ export const trackingCommands: Record<string, CommandHandler> = {
     const changes = ctx.document.body.getTrackedChanges();
     changes.load('items');
     await ctx.sync();
-    changes.acceptAll();
-    await ctx.sync();
-    return { success: true };
+    const count = changes.items.length;
+    if (count > 0) {
+      changes.acceptAll();
+      await ctx.sync();
+    }
+    return { success: true, count };
   },
 
   async rejectAllTrackedChanges(ctx) {
     const changes = ctx.document.body.getTrackedChanges();
     changes.load('items');
     await ctx.sync();
-    changes.rejectAll();
-    await ctx.sync();
-    return { success: true };
+    const count = changes.items.length;
+    if (count > 0) {
+      changes.rejectAll();
+      await ctx.sync();
+    }
+    return { success: true, count };
   },
 
   async getChangeTrackingMode(ctx) {

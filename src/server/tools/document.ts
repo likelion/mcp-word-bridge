@@ -1,4 +1,5 @@
 import type { ToolDefinition } from '../types';
+import { ToolError } from '../types';
 import { forwardTool, jsonResult } from './helpers';
 import type { GetParagraphsResult } from '../../shared/protocol';
 
@@ -92,6 +93,9 @@ export const getDocumentOutline: ToolDefinition = {
   },
   async handler(args, bridge) {
     const maxLevel = (args.maxLevel as number) ?? 3;
+    if (typeof args.maxLevel === 'number' && (args.maxLevel < 1 || args.maxLevel > 9 || !Number.isInteger(args.maxLevel))) {
+      throw new ToolError('maxLevel must be an integer between 1 and 9.');
+    }
     const result = await bridge.send<GetParagraphsResult>('getParagraphs', {});
     const headings: Array<{ level: number; text: string; index: number }> = [];
 

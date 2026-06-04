@@ -88,4 +88,26 @@ describe('Tool Registry', () => {
       expect('bridgeAction' in t).toBe(false);
     }
   });
+
+  test('word_search exposes all search options', () => {
+    const t = tools.find(t => t.name === 'word_search')!;
+    const props = Object.keys(t.schema.properties);
+    expect(props).toContain('matchCase');
+    expect(props).toContain('matchWholeWord');
+    expect(props).toContain('matchWildcards');
+    expect(props).toContain('matchPrefix');
+    expect(props).toContain('matchSuffix');
+    expect(props).toContain('ignorePunct');
+    expect(props).toContain('ignoreSpace');
+  });
+
+  test('word_search_and_replace exposes all search options', () => {
+    const t = tools.find(t => t.name === 'word_search_and_replace')!;
+    const props = Object.keys(t.schema.properties);
+    expect(props).toContain('matchWildcards');
+    expect(props).toContain('matchPrefix');
+    expect(props).toContain('matchSuffix');
+    expect(props).toContain('ignorePunct');
+    expect(props).toContain('ignoreSpace');
+  });
 });

@@ -14,21 +14,18 @@ export const contentControlCommands: Record<string, CommandHandler> = {
   async insertContentControl(ctx, p) {
     const ccType = p.type || 'RichText';
     let range: any;
-    if (p.anchorText) {
-      if (typeof p.anchorText === 'string' && p.anchorText.trim() === '')
-        throw new Error('anchorText cannot be empty. Provide a non-empty search string or omit the parameter to use the current selection.');
-      checkSearchLength(p.anchorText);
-      const results = ctx.document.body.search(p.anchorText, { matchCase: p.matchCase || false });
-      results.load('text');
-      await ctx.sync();
-      if (results.items.length === 0) throw new Error('Anchor not found: ' + p.anchorText);
-      const idx = p.occurrence || 0;
-      if (idx >= results.items.length)
-        throw new Error(`Occurrence ${idx} not found (only ${results.items.length} match${results.items.length === 1 ? '' : 'es'})`);
-      range = results.items[idx];
-    } else {
-      range = ctx.document.getSelection();
+    if (!p.anchorText || (typeof p.anchorText === 'string' && p.anchorText.trim() === '')) {
+      throw new Error('anchorText is required. Provide the text to search for and wrap in a content control.');
     }
+    checkSearchLength(p.anchorText);
+    const results = ctx.document.body.search(p.anchorText, { matchCase: p.matchCase || false });
+    results.load('text');
+    await ctx.sync();
+    if (results.items.length === 0) throw new Error('Anchor not found: ' + p.anchorText);
+    const idx = p.occurrence || 0;
+    if (idx >= results.items.length)
+      throw new Error(`Occurrence ${idx} not found (only ${results.items.length} match${results.items.length === 1 ? '' : 'es'})`);
+    range = results.items[idx];
     const cc = range.insertContentControl(ccType);
     if (p.title) cc.title = p.title;
     if (p.tag) {
@@ -70,8 +67,9 @@ export const contentControlCommands: Record<string, CommandHandler> = {
           break;
         }
       }
+      if (!target) throw new Error(`Content control with tag "${p.tag}" not found. Use word_get_content_controls to list available controls.`);
     }
-    if (!target && p.id) {
+    if (!target && p.id !== undefined) {
       const allCcs = ctx.document.body.getContentControls({ types: [Word.ContentControlType.richText, Word.ContentControlType.plainText, Word.ContentControlType.checkBox] });
       allCcs.load('id,type');
       await ctx.sync();
@@ -83,8 +81,9 @@ export const contentControlCommands: Record<string, CommandHandler> = {
           break;
         }
       }
+      if (!target) throw new Error(`Content control with id ${p.id} not found. Use word_get_content_controls to list available controls.`);
     }
-    if (!target) throw new Error('Content control not found. Provide "id" or "tag" to identify the control. Use word_get_content_controls to list available controls.');
+    if (!target) throw new Error('Provide "id" or "tag" to identify the content control. Use word_get_content_controls to list available controls.');
     const inserted = target.insertText(p.text, Word.InsertLocation.replace);
     inserted.getRange('End').select();
     await ctx.sync();

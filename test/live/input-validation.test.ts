@@ -73,4 +73,48 @@ describe('Input Validation', () => {
     const err = await client.expectError('word_delete_footnote', { index: -1 });
     expect(err).toContain('non-negative');
   });
+
+  test('format_text with no formatting properties rejected', async () => {
+    if (skip()) return;
+    const err = await client.expectError('word_format_text', { text: 'validation' });
+    expect(err).toContain('At least one formatting property');
+  });
+
+  test('merge single cell rejected', async () => {
+    if (skip()) return;
+    const err = await client.expectError('word_merge_table_cells', { tableIndex: 0, topRow: 0, firstCell: 0, bottomRow: 0, lastCell: 0 });
+    expect(err).toContain('single cell');
+  });
+
+  test('bookmark name exceeding 40 chars rejected', async () => {
+    if (skip()) return;
+    const err = await client.expectError('word_insert_bookmark', { name: 'a_very_long_bookmark_name_that_exceeds_the_limit', anchorText: 'validation' });
+    expect(err).toContain('40-character maximum');
+  });
+
+  test('lineSpacing below 1 point rejected', async () => {
+    if (skip()) return;
+    const err = await client.expectError('word_set_paragraph_spacing', { index: 0, lineSpacing: 0.5 });
+    expect(err).toContain('below the minimum');
+  });
+
+  test('get_paragraph_by_index includes inTable field', async () => {
+    if (skip()) return;
+    const normal = await client.call('word_get_paragraph_by_index', { index: 0 });
+    expect(normal).toHaveProperty('inTable');
+    expect(normal.inTable).toBe(false);
+  });
+
+  test('accept_all_tracked_changes returns count', async () => {
+    if (skip()) return;
+    const result = await client.call('word_accept_all_tracked_changes');
+    expect(result).toHaveProperty('count');
+    expect(result.count).toBe(0);
+  });
+
+  test('insert_content_control without anchorText rejected', async () => {
+    if (skip()) return;
+    const err = await client.expectError('word_insert_content_control', {});
+    expect(err).toContain('anchorText is required');
+  });
 });

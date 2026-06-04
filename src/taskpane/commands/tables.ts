@@ -113,6 +113,8 @@ export const tableCommands: Record<string, CommandHandler> = {
       throw new Error('All cell indices must be non-negative');
     if (p.topRow > p.bottomRow) throw new Error(`topRow (${p.topRow}) must be less than or equal to bottomRow (${p.bottomRow})`);
     if (p.firstCell > p.lastCell) throw new Error(`firstCell (${p.firstCell}) must be less than or equal to lastCell (${p.lastCell})`);
+    if (p.topRow === p.bottomRow && p.firstCell === p.lastCell)
+      throw new Error('Cannot merge a single cell with itself. Provide a range spanning at least 2 cells.');
     if (p.tableIndex < 0) throw new Error('Table index must be non-negative');
     const tables = ctx.document.body.tables;
     tables.load('rowCount');

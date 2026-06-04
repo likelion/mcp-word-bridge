@@ -304,6 +304,20 @@ describe('set_content_control_text duplicate tag detection', () => {
       .rejects.toThrow('Provide "id" or "tag"');
   });
 
+  test('rejects with specific message when tag has zero matches', async () => {
+    const bridge = mockBridge({
+      getContentControls: {
+        count: 2,
+        controls: [
+          { id: 100, tag: 'existing', title: 'A', type: 'RichText', text: 'a' },
+          { id: 200, tag: 'other', title: 'B', type: 'RichText', text: 'b' },
+        ],
+      },
+    });
+    await expect(handler({ tag: 'nonexistent', text: 'new' }, bridge))
+      .rejects.toThrow('Content control with tag "nonexistent" not found');
+  });
+
   test('skips duplicate check when using id directly', async () => {
     const bridge = mockBridge({ setContentControlText: { success: true } });
     const result = await handler({ id: 42, text: 'new' }, bridge);
@@ -638,6 +652,26 @@ describe('Document outline maxLevel filtering', () => {
     const result = await outlineHandler({ maxLevel: 9 }, outlineBridge);
     const parsed = JSON.parse(result.content[0].text);
     expect(parsed.count).toBe(2);
+  });
+
+  test('maxLevel 0 rejects with validation error', async () => {
+    await expect(outlineHandler({ maxLevel: 0 }, outlineBridge))
+      .rejects.toThrow('maxLevel must be an integer between 1 and 9');
+  });
+
+  test('maxLevel 10 rejects with validation error', async () => {
+    await expect(outlineHandler({ maxLevel: 10 }, outlineBridge))
+      .rejects.toThrow('maxLevel must be an integer between 1 and 9');
+  });
+
+  test('maxLevel -1 rejects with validation error', async () => {
+    await expect(outlineHandler({ maxLevel: -1 }, outlineBridge))
+      .rejects.toThrow('maxLevel must be an integer between 1 and 9');
+  });
+
+  test('maxLevel 1.5 rejects with validation error', async () => {
+    await expect(outlineHandler({ maxLevel: 1.5 }, outlineBridge))
+      .rejects.toThrow('maxLevel must be an integer between 1 and 9');
   });
 });
 

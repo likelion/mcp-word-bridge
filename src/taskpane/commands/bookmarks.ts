@@ -26,6 +26,8 @@ export const bookmarkCommands: Record<string, CommandHandler> = {
       throw new Error('Bookmark name must be a non-empty string.');
     if (!/^[A-Za-z_]\w*$/.test(p.name))
       throw new Error(`Invalid bookmark name: "${p.name}". Names must start with a letter or underscore and contain only letters, numbers, and underscores (no spaces).`);
+    if (p.name.length > 40)
+      throw new Error(`Bookmark name "${p.name}" exceeds Word's 40-character maximum (got ${p.name.length}).`);
     const results = ctx.document.body.search(p.anchorText, { matchCase: p.matchCase || false });
     results.load('text');
     const range = ctx.document.body.getRange();

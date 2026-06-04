@@ -1,5 +1,6 @@
 import type { CommandHandler } from './index';
 import { checkSearchLength, sanitizeText, checkOccurrence, checkAnchorText } from './document';
+import { insertWithCodes } from './special-codes';
 
 declare const Word: any;
 
@@ -7,7 +8,15 @@ export const searchCommands: Record<string, CommandHandler> = {
   async search(ctx, p) {
     if (!p.query || typeof p.query !== 'string' || p.query.trim() === '')
       throw new Error('Search query cannot be empty. Provide a non-empty search string.');
-    const results = ctx.document.body.search(p.query, { matchCase: p.matchCase || false, matchWholeWord: p.matchWholeWord || false });
+    const results = ctx.document.body.search(p.query, {
+      matchCase: p.matchCase || false,
+      matchWholeWord: p.matchWholeWord || false,
+      matchWildcards: p.matchWildcards || false,
+      matchPrefix: p.matchPrefix || false,
+      matchSuffix: p.matchSuffix || false,
+      ignorePunct: p.ignorePunct || false,
+      ignoreSpace: p.ignoreSpace || false,
+    });
     results.load('text');
     try {
       await ctx.sync();
@@ -37,7 +46,15 @@ export const searchCommands: Record<string, CommandHandler> = {
     const preserveBookmarks = !!p.preserveBookmarks;
     let matchBookmarks: string[][] = [];
 
-    const results = ctx.document.body.search(p.find, { matchCase: p.matchCase || false, matchWholeWord: p.matchWholeWord || false });
+    const results = ctx.document.body.search(p.find, {
+      matchCase: p.matchCase || false,
+      matchWholeWord: p.matchWholeWord || false,
+      matchWildcards: p.matchWildcards || false,
+      matchPrefix: p.matchPrefix || false,
+      matchSuffix: p.matchSuffix || false,
+      ignorePunct: p.ignorePunct || false,
+      ignoreSpace: p.ignoreSpace || false,
+    });
     results.load('text');
     await ctx.sync();
     const count = results.items.length;
@@ -65,7 +82,7 @@ export const searchCommands: Record<string, CommandHandler> = {
         insertedRanges.push(results.items[i]);
         continue;
       }
-      const inserted = results.items[i].insertText(p.replace, Word.InsertLocation.replace);
+      const inserted = await insertWithCodes(results.items[i], p.replace, Word.InsertLocation.replace, ctx);
       insertedRanges.push(inserted);
       actualReplacements++;
     }
@@ -117,7 +134,14 @@ export const searchCommands: Record<string, CommandHandler> = {
     const anchor = p.after || p.before;
     if (!anchor) throw new Error('Either "after" or "before" anchor text must be provided');
     checkSearchLength(anchor);
-    const results = ctx.document.body.search(anchor, { matchCase: p.matchCase || false });
+    const results = ctx.document.body.search(anchor, {
+      matchCase: p.matchCase || false,
+      matchWildcards: p.matchWildcards || false,
+      matchPrefix: p.matchPrefix || false,
+      matchSuffix: p.matchSuffix || false,
+      ignorePunct: p.ignorePunct || false,
+      ignoreSpace: p.ignoreSpace || false,
+    });
     results.load('text');
     await ctx.sync();
     if (results.items.length === 0) throw new Error('Anchor not found: ' + anchor);
@@ -126,7 +150,7 @@ export const searchCommands: Record<string, CommandHandler> = {
       throw new Error(`Occurrence index ${idx} is out of range (valid: 0 to ${results.items.length - 1} for ${results.items.length} match${results.items.length === 1 ? '' : 'es'})`);
     const target = results.items[idx];
     const loc = p.after ? Word.InsertLocation.after : Word.InsertLocation.before;
-    const inserted = target.insertText(p.text, loc);
+    const inserted = await insertWithCodes(target, p.text, loc, ctx);
     inserted.getRange('End').select();
     await ctx.sync();
     return { success: true };

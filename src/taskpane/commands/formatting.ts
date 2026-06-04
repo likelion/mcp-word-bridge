@@ -5,6 +5,10 @@ export const formattingCommands: Record<string, CommandHandler> = {
   async formatRange(ctx, p) {
     checkOccurrence(p.occurrence);
     checkNonEmptyString(p.text, 'text');
+    // Require at least one formatting property
+    const hasFormatting = p.bold !== undefined || p.italic !== undefined || p.underline !== undefined ||
+      p.strikeThrough !== undefined || p.color || p.highlightColor || p.size || p.name;
+    if (!hasFormatting) throw new Error('At least one formatting property must be specified (bold, italic, underline, strikeThrough, color, highlightColor, size, or name).');
     if (p.size !== undefined && p.size <= 0) throw new Error('size must be positive');
     if (p.size !== undefined && p.size > 1638) throw new Error('size must not exceed 1638 points (Word maximum)');
     if (p.size !== undefined && p.size < 1) throw new Error('size must be at least 1 point');

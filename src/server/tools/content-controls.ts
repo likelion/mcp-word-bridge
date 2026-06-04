@@ -49,6 +49,9 @@ export const setContentControlText: ToolDefinition = {
     if (tag) {
       const ccResult = await bridge.send<{ count: number; controls: Array<{ id: number; tag: string }> }>('getContentControls', {});
       const matches = ccResult.controls.filter(c => c.tag === tag);
+      if (matches.length === 0) {
+        throw new ToolError(`Content control with tag "${tag}" not found. Use word_get_content_controls to list available controls.`);
+      }
       if (matches.length > 1) {
         throw new ToolError(
           `Multiple content controls (${matches.length}) share tag "${tag}". ` +

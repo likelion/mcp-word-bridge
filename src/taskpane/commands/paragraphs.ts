@@ -56,10 +56,12 @@ export const paragraphCommands: Record<string, CommandHandler> = {
     await ctx.sync();
     if (p.index >= paragraphs.items.length) throw new Error(`Paragraph index out of range. Valid indices: 0-${paragraphs.items.length - 1} (document has ${paragraphs.items.length} paragraphs).`);
     const para = paragraphs.items[p.index];
-    para.load('text,style,alignment,firstLineIndent,leftIndent,rightIndent,lineSpacing,spaceBefore,spaceAfter,outlineLevel,isListItem');
+    para.load('text,style,alignment,firstLineIndent,leftIndent,rightIndent,lineSpacing,spaceBefore,spaceAfter,outlineLevel,isListItem,parentTableCellOrNullObject');
     para.font.load('name,size,bold,italic,color,underline');
     await ctx.sync();
-    return { text: sanitizeText(para.text), style: para.style, alignment: para.alignment, firstLineIndent: para.firstLineIndent, leftIndent: para.leftIndent, rightIndent: para.rightIndent, lineSpacing: para.lineSpacing, spaceBefore: para.spaceBefore, spaceAfter: para.spaceAfter, outlineLevel: para.outlineLevel, isListItem: para.isListItem, font: { name: para.font.name, size: para.font.size, bold: para.font.bold, italic: para.font.italic, color: para.font.color, underline: para.font.underline } };
+    let inTable = false;
+    try { inTable = para.parentTableCellOrNullObject && !para.parentTableCellOrNullObject.isNullObject; } catch { inTable = false; }
+    return { text: sanitizeText(para.text), style: para.style, alignment: para.alignment, firstLineIndent: para.firstLineIndent, leftIndent: para.leftIndent, rightIndent: para.rightIndent, lineSpacing: para.lineSpacing, spaceBefore: para.spaceBefore, spaceAfter: para.spaceAfter, outlineLevel: para.outlineLevel, isListItem: para.isListItem, inTable, font: { name: para.font.name, size: para.font.size, bold: para.font.bold, italic: para.font.italic, color: para.font.color, underline: para.font.underline } };
   },
 
   async insertParagraph(ctx, p) {
@@ -199,6 +201,7 @@ export const paragraphCommands: Record<string, CommandHandler> = {
   async setParagraphSpacing(ctx, p) {
     checkIndex(p.index, 'index');
     if (p.lineSpacing !== undefined && p.lineSpacing <= 0) throw new Error('lineSpacing must be positive');
+    if (p.lineSpacing !== undefined && p.lineSpacing < 1) throw new Error(`lineSpacing value ${p.lineSpacing} is below the minimum (1 point). Use a value between 1 and 1584.`);
     if (p.spaceBefore !== undefined && p.spaceBefore < 0) throw new Error('spaceBefore must be non-negative');
     if (p.spaceAfter !== undefined && p.spaceAfter < 0) throw new Error('spaceAfter must be non-negative');
     // Enforce upper bounds on spacing/indent values (max 1584pt = 22 inches)
