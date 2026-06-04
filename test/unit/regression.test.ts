@@ -831,16 +831,20 @@ describe('move_paragraph detects no-op', () => {
   }
 
   test('returns warning when moving range immediately after itself', async () => {
+    // fromIndex=0, toIndex=3, count=3: moves [P0,P1,P2] to after P3
+    // This IS a reorder (P3 ends up before the block), so no no-op warning
     const result = await moveHandler({ fromIndex: 0, toIndex: 3, count: 3 }, bridgeWithNParas(5));
     const parsed = JSON.parse(result.content[0].text);
-    expect(parsed.warning).toContain('No move performed');
-    expect(parsed.moved).toBeNull();
+    expect(parsed.success).toBe(true);
+    expect(parsed.moved).not.toBeNull();
   });
 
   test('returns warning for single paragraph no-op (fromIndex=0, toIndex=1, After)', async () => {
+    // fromIndex=0, toIndex=1: moves P0 to after P1 — this IS a reorder
     const result = await moveHandler({ fromIndex: 0, toIndex: 1 }, bridgeWithNParas(5));
     const parsed = JSON.parse(result.content[0].text);
-    expect(parsed.warning).toContain('No move performed');
+    expect(parsed.success).toBe(true);
+    expect(parsed.moved).not.toBeNull();
   });
 
   test('rejects moving the trailing empty paragraph', async () => {
@@ -861,6 +865,22 @@ describe('move_paragraph detects no-op', () => {
     const result = await moveHandler({ fromIndex: 4, toIndex: 0 }, bridgeWithNParas(5));
     const parsed = JSON.parse(result.content[0].text);
     expect(parsed.success).toBe(true);
+  });
+
+  test('detects no-op: move to After the preceding paragraph (fromIndex=1, toIndex=0, After)', async () => {
+    // P1 is already after P0 — moving P1 to "After P0" is a no-op
+    const result = await moveHandler({ fromIndex: 1, toIndex: 0 }, bridgeWithNParas(5));
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed.warning).toContain('No move performed');
+    expect(parsed.moved).toBeNull();
+  });
+
+  test('detects no-op: move to Before the following paragraph (fromIndex=1, toIndex=2, Before)', async () => {
+    // P1 is already before P2 — moving P1 to "Before P2" is a no-op
+    const result = await moveHandler({ fromIndex: 1, toIndex: 2, location: 'Before' }, bridgeWithNParas(5));
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed.warning).toContain('No move performed');
+    expect(parsed.moved).toBeNull();
   });
 });
 

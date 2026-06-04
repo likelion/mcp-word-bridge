@@ -1,5 +1,5 @@
 import type { CommandHandler } from './index';
-import { checkOccurrence, checkNonEmptyString, checkAnchorText, sanitizeText } from './document';
+import { checkOccurrence, checkNonEmptyString, checkAnchorText } from './document';
 
 export const commentCommands: Record<string, CommandHandler> = {
   async addComment(ctx, p) {
@@ -45,6 +45,8 @@ export const commentCommands: Record<string, CommandHandler> = {
   },
 
   async replyToComment(ctx, p) {
+    if (!p.text || typeof p.text !== 'string' || p.text.trim() === '')
+      throw new Error('text must be a non-empty string.');
     const comments = ctx.document.body.getComments();
     comments.load('id');
     await ctx.sync();

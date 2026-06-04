@@ -42,4 +42,33 @@ describe('Batch tool argument validation', () => {
       operations: [{ tool: 'word_batch', args: { operations: [{ tool: 'word_get_text', args: {} }] } }],
     }, mockBridge)).rejects.toThrow('cannot be nested');
   });
+
+  test('runs server-side validate callback for native ops', async () => {
+    // word_format_text has a validate callback that rejects when no formatting
+    // properties are provided. This should fail server-side without reaching taskpane.
+    const calls: string[] = [];
+    const trackingBridge: any = {
+      send: async (action: string) => {
+        calls.push(action);
+        return { results: [] };
+      },
+    };
+    const result = await batchHandler({
+      operations: [{ tool: 'word_format_text', args: { text: 'hello' } }],
+    }, trackingBridge);
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed.results[0].success).toBe(false);
+    expect(parsed.results[0].error).toContain('At least one formatting property');
+    // Bridge should NOT have been called — validation prevented the round-trip
+    expect(calls).not.toContain('batchExecute');
+  });
+
+  test('runs validate for word_reply_to_comment with empty text in batch', async () => {
+    const result = await batchHandler({
+      operations: [{ tool: 'word_reply_to_comment', args: { commentId: '123', text: '' } }],
+    }, mockBridge);
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed.results[0].success).toBe(false);
+    expect(parsed.results[0].error).toContain('non-empty');
+  });
 });

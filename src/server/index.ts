@@ -61,7 +61,7 @@ function createHttpsServer() {
   const rootDir = path.join(__dirname, '..');
 
   return https.createServer(options, (req, res) => {
-    let urlPath = (req.url || '/').split('?')[0]!;
+    const urlPath = (req.url || '/').split('?')[0]!;
     let filePath = urlPath === '/' ? '/taskpane.html' : urlPath;
     filePath = path.resolve(rootDir, '.' + filePath);
 

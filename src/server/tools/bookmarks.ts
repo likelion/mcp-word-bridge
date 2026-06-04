@@ -1,5 +1,6 @@
 import type { ToolDefinition } from '../types';
 import { forwardTool } from './helpers';
+import { checkNonEmpty } from '../validation';
 
 export const getBookmarks = forwardTool(
   'word_get_bookmarks',
@@ -21,6 +22,10 @@ export const insertBookmark = forwardTool(
     required: ['name', 'anchorText'],
   },
   'insertBookmark',
+  (args) => {
+    checkNonEmpty(args.name, 'name');
+    checkNonEmpty(args.anchorText, 'anchorText');
+  },
 );
 
 export const deleteBookmark = forwardTool(
@@ -33,6 +38,9 @@ export const deleteBookmark = forwardTool(
     required: ['name'],
   },
   'deleteBookmark',
+  (args) => {
+    checkNonEmpty(args.name, 'name');
+  },
 );
 
 export const goToBookmark = forwardTool(
@@ -45,6 +53,9 @@ export const goToBookmark = forwardTool(
     required: ['name'],
   },
   'goToBookmark',
+  (args) => {
+    checkNonEmpty(args.name, 'name');
+  },
 );
 
 export const getBookmarkText = forwardTool(
@@ -57,6 +68,9 @@ export const getBookmarkText = forwardTool(
     required: ['name'],
   },
   'getBookmarkText',
+  (args) => {
+    checkNonEmpty(args.name, 'name');
+  },
 );
 
 export const bookmarkTools: ToolDefinition[] = [

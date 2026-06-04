@@ -220,12 +220,10 @@ export const moveParagraph: ToolDefinition = {
       }
     }
 
-    // Detect no-op: moving paragraphs immediately after themselves
+    // Detect no-op: compute effective insert position and compare to source
     const adjustedTo = fromIndex < toIndex ? toIndex - count : toIndex;
-    if (toIndex === fromIndex + count && location === 'After') {
-      return jsonResult({ success: true, warning: 'No move performed — destination is equivalent to source position.', moved: null });
-    }
-    if (adjustedTo === fromIndex && location === 'After') {
+    const effectiveInsertPos = location === 'Before' ? adjustedTo : adjustedTo + 1;
+    if (effectiveInsertPos === fromIndex) {
       return jsonResult({ success: true, warning: 'No move performed — destination is equivalent to source position.', moved: null });
     }
 

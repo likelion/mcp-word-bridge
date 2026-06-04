@@ -1,5 +1,6 @@
 import type { ToolDefinition } from '../types';
 import { forwardTool } from './helpers';
+import { checkNonEmpty } from '../validation';
 
 export const insertFootnote = forwardTool(
   'word_insert_footnote',
@@ -14,6 +15,10 @@ export const insertFootnote = forwardTool(
     required: ['anchorText', 'text'],
   },
   'insertFootnote',
+  (args) => {
+    checkNonEmpty(args.anchorText, 'anchorText');
+    checkNonEmpty(args.text, 'text');
+  },
 );
 
 export const insertFootnoteAtIndex = forwardTool(
@@ -27,6 +32,9 @@ export const insertFootnoteAtIndex = forwardTool(
     required: ['paragraphIndex', 'text'],
   },
   'insertFootnoteAtIndex',
+  (args) => {
+    checkNonEmpty(args.text, 'text');
+  },
 );
 
 export const insertEndnote = forwardTool(
@@ -42,6 +50,10 @@ export const insertEndnote = forwardTool(
     required: ['anchorText', 'text'],
   },
   'insertEndnote',
+  (args) => {
+    checkNonEmpty(args.anchorText, 'anchorText');
+    checkNonEmpty(args.text, 'text');
+  },
 );
 
 export const getFootnotes = forwardTool(

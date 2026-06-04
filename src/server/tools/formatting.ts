@@ -2,9 +2,7 @@ import type { ToolDefinition } from '../types';
 import { ToolError } from '../types';
 import { forwardTool } from './helpers';
 import { checkNonEmpty, checkHexColor } from '../validation';
-
-/** Validate highlight color is a named Word color */
-const HIGHLIGHT_COLORS = ['Yellow', 'Green', 'Cyan', 'Magenta', 'Blue', 'Red', 'DarkBlue', 'DarkCyan', 'DarkGreen', 'DarkMagenta', 'DarkRed', 'DarkYellow', 'Gray25', 'Gray50', 'Black', 'White', 'NoHighlight'];
+import { HIGHLIGHT_COLORS } from '../../shared/constants';
 
 function validateFormatText(args: Record<string, unknown>): void {
   checkNonEmpty(args.text, 'text');

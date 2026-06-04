@@ -1,8 +1,6 @@
 import type { CommandHandler } from './index';
 import { checkAnchorText } from './document';
 
-declare const Word: any;
-
 export const hyperlinkCommands: Record<string, CommandHandler> = {
   async insertHyperlink(ctx, p) {
     if (!p.url || !/^https?:\/\/.+/i.test(p.url))

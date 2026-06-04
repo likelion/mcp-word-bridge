@@ -2,7 +2,7 @@ import type { ToolDefinition, ToolHandler } from '../types';
 import { ToolError } from '../types';
 import { MAX_BATCH_OPERATIONS } from '../../shared/constants';
 import { jsonResult } from './helpers';
-import type { Bridge } from '../bridge';
+import type { ForwardValidator } from './helpers';
 import type { BatchResult } from '../../shared/protocol';
 
 interface OpEntry { tool: string; args: Record<string, unknown>; originalIndex: number }
@@ -12,10 +12,14 @@ interface ResultEntry { index: number; tool: string; success: boolean; result?: 
  * The batch tool buffers consecutive "native" (forwarded) operations and sends them
  * to the taskpane in a single batchExecute message. Server-composed tools flush the
  * buffer and execute individually.
+ *
+ * Validators are run server-side before buffering native ops, ensuring the same
+ * validation applies whether a tool is called directly or via batch.
  */
 export function createBatchTool(
   registry: Map<string, ToolHandler>,
   actionMap: Map<string, string>,
+  validators: Map<string, ForwardValidator>,
 ): ToolDefinition {
   return {
     name: 'word_batch',
@@ -91,6 +95,18 @@ export function createBatchTool(
 
         // If this tool has a bridge action mapping, it's a native op — buffer it
         if (actionMap.has(op.tool)) {
+          // Run server-side validate callback before buffering (same validation
+          // that runs on direct calls — prevents batch from bypassing it)
+          const validate = validators.get(op.tool);
+          if (validate) {
+            try {
+              validate(op.args || {});
+            } catch (e) {
+              results.push({ index: i, tool: op.tool, success: false, error: (e as Error).message });
+              stopped = true;
+              break;
+            }
+          }
           nativeBuf.push({ tool: op.tool, args: op.args || {}, originalIndex: i });
         } else {
           // Server-composed tool — flush buffer first, then execute individually

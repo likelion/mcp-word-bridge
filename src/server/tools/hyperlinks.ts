@@ -1,5 +1,6 @@
 import type { ToolDefinition } from '../types';
 import { forwardTool } from './helpers';
+import { checkNonEmpty, checkUrl } from '../validation';
 
 export const insertHyperlink = forwardTool(
   'word_insert_hyperlink',
@@ -14,6 +15,11 @@ export const insertHyperlink = forwardTool(
     required: ['anchorText', 'url'],
   },
   'insertHyperlink',
+  (args) => {
+    checkNonEmpty(args.anchorText, 'anchorText');
+    checkNonEmpty(args.url, 'url');
+    checkUrl(args.url as string);
+  },
 );
 
 export const getHyperlinks = forwardTool(
@@ -35,6 +41,9 @@ export const removeHyperlink = forwardTool(
     required: ['anchorText'],
   },
   'removeHyperlink',
+  (args) => {
+    checkNonEmpty(args.anchorText, 'anchorText');
+  },
 );
 
 export const hyperlinkTools: ToolDefinition[] = [

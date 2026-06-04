@@ -44,7 +44,7 @@ export const searchCommands: Record<string, CommandHandler> = {
 
     // If preserveBookmarks, collect which bookmarks are on each match
     const preserveBookmarks = !!p.preserveBookmarks;
-    let matchBookmarks: string[][] = [];
+    const matchBookmarks: string[][] = [];
 
     const results = ctx.document.body.search(p.find, {
       matchCase: p.matchCase || false,

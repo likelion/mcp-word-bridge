@@ -14,7 +14,8 @@ export type ForwardValidator = (args: Record<string, unknown>) => void;
  * Convenience: define a tool that simply forwards to a bridge action
  * and returns the result as JSON.
  * The `bridgeAction` property enables batch optimization.
- * An optional `validate` function runs server-side before forwarding,
+ * The `validate` property is exposed so batch can run it before buffering.
+ * An optional validate function runs server-side before forwarding,
  * providing a single authoritative validation layer.
  */
 export function forwardTool(
@@ -23,12 +24,13 @@ export function forwardTool(
   schema: ToolDefinition['schema'],
   action: string,
   validate?: ForwardValidator,
-): ToolDefinition & { bridgeAction: string } {
+): ToolDefinition & { bridgeAction: string; validate?: ForwardValidator } {
   return {
     name,
     description,
     schema,
     bridgeAction: action,
+    validate,
     async handler(args, bridge) {
       if (validate) validate(args);
       const result = await bridge.send(action, args);

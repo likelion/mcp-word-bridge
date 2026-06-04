@@ -1,6 +1,7 @@
 import type { ToolDefinition } from '../types';
 import { ToolError } from '../types';
 import { forwardTool, jsonResult } from './helpers';
+import { checkNonEmpty } from '../validation';
 
 export const search = forwardTool(
   'word_search',
@@ -19,6 +20,9 @@ export const search = forwardTool(
     required: ['query'],
   },
   'search',
+  (args) => {
+    checkNonEmpty(args.query, 'query');
+  },
 );
 
 export const searchAndReplace: ToolDefinition = {
@@ -105,6 +109,9 @@ export const insertLineBreak = forwardTool(
     required: ['anchorText'],
   },
   'insertLineBreak',
+  (args) => {
+    checkNonEmpty(args.anchorText, 'anchorText');
+  },
 );
 
 export const searchTools: ToolDefinition[] = [

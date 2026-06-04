@@ -1,5 +1,5 @@
 import type { CommandHandler } from './index';
-import { MAX_SEARCH_LENGTH } from '../../shared/constants';
+import { MAX_SEARCH_LENGTH, HIGHLIGHT_COLORS } from '../../shared/constants';
 
 // =============================================================================
 // Shared validation utilities (imported by other command modules)
@@ -83,9 +83,6 @@ export async function checkStyleExists(ctx: any, styleName: string): Promise<voi
     throw new Error(`Style not found: "${styleName}". Use word_get_styles to see available styles.`);
   }
 }
-
-/** Valid Word highlight color names */
-export const HIGHLIGHT_COLORS = ['Yellow', 'Green', 'Cyan', 'Magenta', 'Blue', 'Red', 'DarkBlue', 'DarkCyan', 'DarkGreen', 'DarkMagenta', 'DarkRed', 'DarkYellow', 'Gray25', 'Gray50', 'Black', 'White', 'NoHighlight'] as const;
 
 /** Validate highlight color — only named Word highlight colors are supported.
  *  Word silently snaps arbitrary hex values to the nearest named color, which

@@ -1,4 +1,5 @@
 import type { ToolDefinition, ToolHandler } from '../types';
+import type { ForwardValidator } from './helpers';
 import { documentTools } from './document';
 import { paragraphTools } from './paragraphs';
 import { searchTools } from './search';
@@ -50,19 +51,24 @@ export function buildToolRegistry(): {
     ...equationTools,
   ];
 
-  // Build handler map and action map from all non-batch tools
+  // Build handler map, action map, and validator map from all non-batch tools
   const handlers = new Map<string, ToolHandler>();
   const actionMap = new Map<string, string>();
+  const validators = new Map<string, ForwardValidator>();
   for (const tool of allTools) {
     handlers.set(tool.name, tool.handler);
     // Tools created with forwardTool have a bridgeAction property
     if ('bridgeAction' in tool && typeof tool.bridgeAction === 'string') {
       actionMap.set(tool.name, tool.bridgeAction);
     }
+    // Collect exposed validate callbacks for batch to use
+    if ('validate' in tool && typeof tool.validate === 'function') {
+      validators.set(tool.name, tool.validate as ForwardValidator);
+    }
   }
 
-  // Create batch tool with access to all handlers and the action map
-  const batchTool = createBatchTool(handlers, actionMap);
+  // Create batch tool with access to all handlers, the action map, and validators
+  const batchTool = createBatchTool(handlers, actionMap, validators);
   allTools.push(batchTool);
   handlers.set(batchTool.name, batchTool.handler);
 

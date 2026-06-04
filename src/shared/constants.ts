@@ -21,3 +21,7 @@ export const HEAVY_OPERATIONS = new Set([
 
 /** Maximum WebSocket payload size (bytes) */
 export const MAX_PAYLOAD = 10 * 1024 * 1024;
+
+/** Valid Word highlight color names. Word only supports these named colors for
+ *  the highlightColor property — arbitrary hex values are silently snapped. */
+export const HIGHLIGHT_COLORS = ['Yellow', 'Green', 'Cyan', 'Magenta', 'Blue', 'Red', 'DarkBlue', 'DarkCyan', 'DarkGreen', 'DarkMagenta', 'DarkRed', 'DarkYellow', 'Gray25', 'Gray50', 'Black', 'White', 'NoHighlight'] as const;

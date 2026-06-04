@@ -1,6 +1,7 @@
 import type { ToolDefinition } from '../types';
 import { ToolError } from '../types';
 import { forwardTool, jsonResult } from './helpers';
+import { checkNonEmpty } from '../validation';
 
 export const getContentControls = forwardTool(
   'word_get_content_controls',
@@ -24,6 +25,9 @@ export const insertContentControl = forwardTool(
     },
   },
   'insertContentControl',
+  (args) => {
+    checkNonEmpty(args.anchorText, 'anchorText');
+  },
 );
 
 export const setContentControlText: ToolDefinition = {

@@ -13,7 +13,6 @@ export const contentControlCommands: Record<string, CommandHandler> = {
 
   async insertContentControl(ctx, p) {
     const ccType = p.type || 'RichText';
-    let range: any;
     if (!p.anchorText || (typeof p.anchorText === 'string' && p.anchorText.trim() === '')) {
       throw new Error('anchorText is required. Provide the text to search for and wrap in a content control.');
     }
@@ -25,7 +24,7 @@ export const contentControlCommands: Record<string, CommandHandler> = {
     const idx = p.occurrence || 0;
     if (idx >= results.items.length)
       throw new Error(`Occurrence ${idx} not found (only ${results.items.length} match${results.items.length === 1 ? '' : 'es'})`);
-    range = results.items[idx];
+    const range = results.items[idx];
     const cc = range.insertContentControl(ccType);
     if (p.title) cc.title = p.title;
     if (p.tag) {
