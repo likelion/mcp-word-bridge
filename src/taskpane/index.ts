@@ -68,6 +68,40 @@ function sendError(id: string, error: string): void {
   }
 }
 
+// ─── Error Formatting ───────────────────────────────────────────────────────────
+
+/**
+ * Extract useful details from Office.js OfficeExtension.Error objects.
+ * Falls back to e.message for non-Office errors.
+ */
+function formatOfficeError(e: any): string {
+  // If it's already a well-formed error message (from our own throw), return as-is
+  if (!e.debugInfo && !e.code) return e.message || String(e);
+
+  const parts: string[] = [];
+  const code = e.code || '';
+  const msg = e.message || '';
+
+  // Start with the code + message
+  if (code && msg && !msg.includes(code)) {
+    parts.push(`${code}: ${msg}`);
+  } else {
+    parts.push(msg || code);
+  }
+
+  // Append debugInfo details if available
+  if (e.debugInfo) {
+    if (e.debugInfo.message && e.debugInfo.message !== msg) {
+      parts.push(e.debugInfo.message);
+    }
+    if (e.debugInfo.errorLocation) {
+      parts.push(`Location: ${e.debugInfo.errorLocation}`);
+    }
+  }
+
+  return parts.join(' | ');
+}
+
 // ─── Command Dispatcher ─────────────────────────────────────────────────────────
 
 async function handleCommand(cmd: BridgeRequest): Promise<void> {
@@ -83,7 +117,8 @@ async function handleCommand(cmd: BridgeRequest): Promise<void> {
     log('→ ok', 'log-ok');
     sendResponse(cmd.id, result);
   } catch (e: any) {
-    log('→ ERR: ' + e.message, 'log-err');
-    sendError(cmd.id, e.message);
+    const errMsg = formatOfficeError(e);
+    log('→ ERR: ' + errMsg, 'log-err');
+    sendError(cmd.id, errMsg);
   }
 }

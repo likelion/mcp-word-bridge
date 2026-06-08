@@ -104,9 +104,42 @@ export const paragraphCommands: Record<string, CommandHandler> = {
     if (p.style) await checkStyleExists(ctx, p.style);
     const ref = paragraphs.items[p.index];
     const location = p.location === 'Before' ? 'Before' : 'After';
-    const newPara = ref.insertParagraph(p.text, location);
-    newPara.style = styleName;
-    await ctx.sync();
+
+    let newPara: any;
+    try {
+      newPara = ref.insertParagraph(p.text, location);
+      newPara.style = styleName;
+      await ctx.sync();
+    } catch (e: any) {
+      if (!e.message?.includes('GeneralException')) throw e;
+      // Fallback: use range-based insertion (insertText with paragraph mark)
+      try {
+        const rangeLocation = location === 'After' ? 'End' : 'Start';
+        const range = ref.getRange(rangeLocation);
+        const inserted = range.insertText('\n' + p.text, location === 'After' ? 'After' : 'Before');
+        void inserted; // insertText returns a Range proxy; we only need the sync side-effect
+        await ctx.sync();
+        // Re-load paragraphs to find and style the new one
+        const freshParas = ctx.document.body.paragraphs;
+        freshParas.load('text,style');
+        await ctx.sync();
+        const newIdx = location === 'After' ? p.index + 1 : p.index;
+        if (newIdx < freshParas.items.length) {
+          freshParas.items[newIdx].style = styleName;
+          await ctx.sync();
+          if (alignment) { freshParas.items[newIdx].alignment = alignment; await ctx.sync(); }
+          freshParas.items[newIdx].getRange('End').select();
+          await ctx.sync();
+        }
+        const result: any = { success: true };
+        if (inTable) result.warning = 'Paragraph inserted inside a table cell. This creates a multi-paragraph cell which may not be intended.';
+        return result;
+      } catch (fallbackErr: any) {
+        // If fallback also fails, throw a descriptive error
+        throw new Error(`Cannot insert paragraph at index ${p.index} (${location}). Primary insert failed with GeneralException; fallback also failed: ${fallbackErr.message}. The document structure at this position may not support paragraph insertion.`);
+      }
+    }
+
     if (alignment) { newPara.alignment = alignment; await ctx.sync(); }
     newPara.getRange('End').select();
     await ctx.sync();
@@ -118,7 +151,7 @@ export const paragraphCommands: Record<string, CommandHandler> = {
   async deleteParagraph(ctx, p) {
     checkIndex(p.index, 'index');
     const paragraphs = ctx.document.body.paragraphs;
-    paragraphs.load('text,parentTableCellOrNullObject');
+    paragraphs.load('text,isListItem,parentTableCellOrNullObject');
     await ctx.sync();
     if (p.index >= paragraphs.items.length) throw new Error(`Paragraph index out of range. Valid indices: 0-${paragraphs.items.length - 1} (document has ${paragraphs.items.length} paragraphs).`);
     // Guard: allow deletion of extra paragraphs in table cells, block last one
@@ -141,11 +174,57 @@ export const paragraphCommands: Record<string, CommandHandler> = {
       }
     }
     const countBefore = paragraphs.items.length;
-    paragraphs.items[p.index].delete();
-    try { await ctx.sync(); } catch (e: any) {
-      if (e.message?.includes('GeneralException')) throw new Error(`Cannot delete paragraph ${p.index}. It may be a TOC field entry or inside a protected region.`);
-      throw e;
+    const para = paragraphs.items[p.index];
+    const isListItem = para.isListItem;
+
+    // Strategy 1: Try direct paragraph.delete()
+    let deleted = false;
+    try {
+      para.delete();
+      await ctx.sync();
+      deleted = true;
+    } catch (e: any) {
+      // If direct delete fails, try fallback strategies
+      if (!e.message?.includes('GeneralException')) throw e;
     }
+
+    // Strategy 2: If list item, clear list formatting then retry delete
+    if (!deleted && isListItem) {
+      try {
+        const freshParas = ctx.document.body.paragraphs;
+        freshParas.load('text,isListItem');
+        await ctx.sync();
+        const freshPara = freshParas.items[p.index];
+        // Detach from list by setting style to Normal (removes list formatting)
+        freshPara.style = 'Normal';
+        await ctx.sync();
+        freshPara.delete();
+        await ctx.sync();
+        deleted = true;
+      } catch (e: any) {
+        if (!e.message?.includes('GeneralException')) throw e;
+      }
+    }
+
+    // Strategy 3: Use range.delete() which handles more edge cases
+    if (!deleted) {
+      try {
+        const freshParas = ctx.document.body.paragraphs;
+        freshParas.load('text');
+        await ctx.sync();
+        const freshPara = freshParas.items[p.index];
+        const range = freshPara.getRange('Whole');
+        range.delete();
+        await ctx.sync();
+        deleted = true;
+      } catch (e: any) {
+        if (e.message?.includes('GeneralException')) {
+          throw new Error(`Cannot delete paragraph ${p.index}. Word refused the operation — the paragraph may be a TOC field entry, inside a protected region, or part of a list structure that cannot be broken. Try word_replace_paragraph_text to clear its content instead.`);
+        }
+        throw e;
+      }
+    }
+
     const parasAfter = ctx.document.body.paragraphs;
     parasAfter.load('text');
     await ctx.sync();
@@ -168,7 +247,7 @@ export const paragraphCommands: Record<string, CommandHandler> = {
     const inserted = paragraphs.items[p.index].insertText(p.text, 'Replace');
     inserted.getRange('End').select();
     try { await ctx.sync(); } catch (e: any) {
-      if (e.message?.includes('GeneralException')) throw new Error(`Cannot replace text of paragraph ${p.index}. It may be a TOC field entry or inside a protected region.`);
+      if (e.message?.includes('GeneralException')) throw new Error(`Cannot replace text of paragraph ${p.index}. It may be a TOC field entry, inside a protected region, or part of an uneditable structure.`);
       throw e;
     }
     return { success: true };

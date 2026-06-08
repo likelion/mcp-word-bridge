@@ -1492,3 +1492,101 @@ describe('table tool server-side validators', () => {
     expect(parsed.success).toBe(true);
   });
 });
+
+// =============================================================================
+// delete_paragraph description documents fallback strategies
+// =============================================================================
+describe('delete_paragraph tool metadata', () => {
+  const { tools } = buildToolRegistry();
+  const tool = tools.find(t => t.name === 'word_delete_paragraph')!;
+
+  test('description mentions fallback strategies', () => {
+    expect(tool.description).toContain('fallback');
+  });
+
+  test('description mentions list formatting', () => {
+    expect(tool.description).toContain('list formatting');
+  });
+
+  test('description mentions range deletion', () => {
+    expect(tool.description).toContain('range deletion');
+  });
+});
+
+// =============================================================================
+// insert_text_at_match description documents 255-char anchor text limit
+// =============================================================================
+describe('insert_text_at_match tool metadata', () => {
+  const { tools } = buildToolRegistry();
+  const tool = tools.find(t => t.name === 'word_insert_text_at_match')!;
+
+  test('description documents 255-char anchor text limit', () => {
+    expect(tool.description).toContain('255');
+  });
+});
+
+// =============================================================================
+// delete_paragraph forwards to bridge
+// =============================================================================
+describe('delete_paragraph server-side forwarding', () => {
+  const handler = handlers.get('word_delete_paragraph')!;
+
+  test('forwards index directly to bridge (validation is taskpane-side)', async () => {
+    const bridge = mockBridge({ deleteParagraph: { success: true } });
+    const result = await handler({ index: 2 }, bridge);
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed.success).toBe(true);
+    expect(bridge.calls[0]).toEqual({ action: 'deleteParagraph', params: { index: 2 } });
+  });
+
+  test('passes through bridge error messages', async () => {
+    const bridge: any = {
+      calls: [] as any[],
+      send: async (action: string, params: any) => {
+        bridge.calls.push({ action, params });
+        throw new Error('Cannot delete paragraph 5. Word refused the operation.');
+      },
+    };
+    await expect(handler({ index: 5 }, bridge))
+      .rejects.toThrow('Cannot delete paragraph 5');
+  });
+});
+
+// =============================================================================
+// insert_paragraph_at_index server-side forwarding
+// =============================================================================
+describe('insert_paragraph_at_index server-side forwarding', () => {
+  const handler = handlers.get('word_insert_paragraph_at_index')!;
+
+  test('forwards valid params to bridge', async () => {
+    const bridge = mockBridge({ insertParagraphAtIndex: { success: true } });
+    const result = await handler({ index: 3, text: 'test content', style: 'Heading 1' }, bridge);
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed.success).toBe(true);
+    expect(bridge.calls[0].action).toBe('insertParagraphAtIndex');
+    expect(bridge.calls[0].params.index).toBe(3);
+    expect(bridge.calls[0].params.text).toBe('test content');
+    expect(bridge.calls[0].params.style).toBe('Heading 1');
+  });
+
+  test('forwards long text without server-side rejection', async () => {
+    const longText = 'A'.repeat(600) + ' — with em-dashes (and parens) "quotes"';
+    const bridge = mockBridge({ insertParagraphAtIndex: { success: true } });
+    const result = await handler({ index: 0, text: longText }, bridge);
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed.success).toBe(true);
+    expect(bridge.calls[0].params.text).toBe(longText);
+  });
+
+  test('passes through bridge error messages', async () => {
+    const bridge: any = {
+      calls: [] as any[],
+      send: async (action: string, params: any) => {
+        bridge.calls.push({ action, params });
+        throw new Error('Cannot insert paragraph at index 378. Primary insert failed.');
+      },
+    };
+    await expect(handler({ index: 378, text: 'test' }, bridge))
+      .rejects.toThrow('Cannot insert paragraph at index 378');
+  });
+});

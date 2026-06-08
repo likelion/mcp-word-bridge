@@ -61,7 +61,7 @@ export const insertParagraphAtIndex = forwardTool(
 
 export const deleteParagraph = forwardTool(
   'word_delete_paragraph',
-  '[Paragraphs] Delete a paragraph by its 0-based index. For table cells with multiple paragraphs, extra paragraphs can be removed (the last paragraph in a cell cannot be deleted).',
+  '[Paragraphs] Delete a paragraph by its 0-based index. For table cells with multiple paragraphs, extra paragraphs can be removed (the last paragraph in a cell cannot be deleted). Uses fallback strategies (clear list formatting, range deletion) if direct deletion fails.',
   {
     properties: {
       index: { type: 'number', description: 'Paragraph index (0-based)' },

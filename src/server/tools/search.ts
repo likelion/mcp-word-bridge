@@ -57,7 +57,7 @@ export const searchAndReplace: ToolDefinition = {
 
 export const insertTextAtMatch = forwardTool(
   'word_insert_text_at_match',
-  '[Search] Insert text before or after a search match. Supports Word search codes in inserted text: ^p (paragraph mark), ^l (line break), ^t (tab), ^s (non-breaking space), ^m (page break), ^n (column break), ^~ (non-breaking hyphen), ^- (optional hyphen), ^+ (em dash), ^= (en dash), ^^ (literal caret). Provide "after" OR "before" as the anchor text. Use occurrence for Nth match. Note: inserting ^p after hyperlinked text may create a paragraph that inherits the hyperlink character style.',
+  '[Search] Insert text before or after a search match. Anchor text (after/before) must be ≤255 chars. Supports Word search codes in inserted text: ^p (paragraph mark), ^l (line break), ^t (tab), ^s (non-breaking space), ^m (page break), ^n (column break), ^~ (non-breaking hyphen), ^- (optional hyphen), ^+ (em dash), ^= (en dash), ^^ (literal caret). Provide "after" OR "before" as the anchor text. Use occurrence for Nth match. Note: inserting ^p after hyperlinked text may create a paragraph that inherits the hyperlink character style.',
   {
     properties: {
       text: { type: 'string', description: 'Text to insert' },
