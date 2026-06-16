@@ -1590,3 +1590,85 @@ describe('insert_paragraph_at_index server-side forwarding', () => {
       .rejects.toThrow('Cannot insert paragraph at index 378');
   });
 });
+
+// =============================================================================
+// Track Changes validation
+// =============================================================================
+describe('Track Changes input validation', () => {
+  const acceptHandler = handlers.get('word_accept_tracked_change')!;
+  const rejectHandler = handlers.get('word_reject_tracked_change')!;
+  const rangeHandler = handlers.get('word_accept_tracked_changes_in_range')!;
+
+  test('accept rejects negative index', async () => {
+    await expect(acceptHandler({ index: -1 }, mockBridge()))
+      .rejects.toThrow('non-negative integer');
+  });
+
+  test('accept rejects float index', async () => {
+    await expect(acceptHandler({ index: 1.5 }, mockBridge()))
+      .rejects.toThrow('non-negative integer');
+  });
+
+  test('reject rejects negative index', async () => {
+    await expect(rejectHandler({ index: -3 }, mockBridge()))
+      .rejects.toThrow('non-negative integer');
+  });
+
+  test('reject rejects NaN index', async () => {
+    await expect(rejectHandler({ index: NaN }, mockBridge()))
+      .rejects.toThrow('non-negative integer');
+  });
+
+  test('accept_in_range rejects negative startIndex', async () => {
+    await expect(rangeHandler({ startIndex: -1 }, mockBridge()))
+      .rejects.toThrow('non-negative integer');
+  });
+
+  test('accept_in_range rejects float startIndex', async () => {
+    await expect(rangeHandler({ startIndex: 2.5 }, mockBridge()))
+      .rejects.toThrow('non-negative integer');
+  });
+
+  test('accept_in_range rejects endIndex <= startIndex', async () => {
+    await expect(rangeHandler({ startIndex: 5, endIndex: 5 }, mockBridge()))
+      .rejects.toThrow('endIndex must be greater than startIndex');
+  });
+
+  test('accept_in_range rejects endIndex < startIndex', async () => {
+    await expect(rangeHandler({ startIndex: 10, endIndex: 3 }, mockBridge()))
+      .rejects.toThrow('endIndex must be greater than startIndex');
+  });
+
+  test('accept_in_range rejects negative endIndex', async () => {
+    await expect(rangeHandler({ startIndex: 0, endIndex: -1 }, mockBridge()))
+      .rejects.toThrow('non-negative integer');
+  });
+
+  test('accept_in_range accepts valid range', async () => {
+    const bridge = mockBridge({ acceptTrackedChangesInRange: { success: true } });
+    const result = await rangeHandler({ startIndex: 0, endIndex: 5 }, bridge);
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed.success).toBe(true);
+  });
+
+  test('accept_in_range accepts startIndex without endIndex', async () => {
+    const bridge = mockBridge({ acceptTrackedChangesInRange: { success: true } });
+    const result = await rangeHandler({ startIndex: 3 }, bridge);
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed.success).toBe(true);
+  });
+
+  test('accept forwards valid index to bridge', async () => {
+    const bridge = mockBridge({ acceptTrackedChange: { success: true } });
+    await acceptHandler({ index: 0 }, bridge);
+    expect(bridge.calls[0].action).toBe('acceptTrackedChange');
+    expect(bridge.calls[0].params.index).toBe(0);
+  });
+
+  test('reject forwards valid index to bridge', async () => {
+    const bridge = mockBridge({ rejectTrackedChange: { success: true } });
+    await rejectHandler({ index: 2 }, bridge);
+    expect(bridge.calls[0].action).toBe('rejectTrackedChange');
+    expect(bridge.calls[0].params.index).toBe(2);
+  });
+});

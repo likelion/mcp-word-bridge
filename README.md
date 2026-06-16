@@ -186,6 +186,7 @@ Each MCP host spawns `dist/server.js` which acts as a thin proxy. The proxy ensu
 | `word_accept_tracked_change` | Accept a change by index |
 | `word_reject_tracked_change` | Reject a change by index |
 | `word_accept_all_tracked_changes` | Accept all changes |
+| `word_accept_tracked_changes_in_range` | Accept changes within a paragraph index range |
 | `word_reject_all_tracked_changes` | Reject all changes |
 
 ### Content Controls
@@ -327,6 +328,7 @@ Platform constraints in the Word JavaScript API that cannot be resolved in this 
 |------|------------|----------------|
 | Tracked Changes | `word_get_tracked_changes` returns empty `text` for deletions. The `Word.TrackedChange.text` property returns `""` when `type` is `"Deleted"`. Only additions and formatting changes include text content. | [office-js#5188](https://github.com/OfficeDev/office-js/issues/5188) |
 | Tracked Changes | `getTrackedChanges()` throws if the document contains "moved" tracked changes (drag-and-drop reorders). These produce paired "moved from"/"moved to" entries that the API cannot handle. | [office-js#5535](https://github.com/OfficeDev/office-js/issues/5535) |
+| Tracked Changes | The `TrackedChange.type` property throws `GeneralException` on certain tracked change types (formatting-only revisions, complex structural changes). When this occurs, `word_get_tracked_changes` reports `type: "Unknown"` for affected items. `acceptAll`/`rejectAll` and `accept_tracked_changes_in_range` still work regardless. | [office-js#4067](https://github.com/OfficeDev/office-js/issues/4067) |
 | Highlight Colors | `highlightColor` only supports 17 named colors (Yellow, Green, Cyan, Magenta, Blue, Red, DarkBlue, DarkCyan, DarkGreen, DarkMagenta, DarkRed, DarkYellow, Gray25, Gray50, Black, White, NoHighlight). The Word API documentation claims `#RRGGBB` is accepted, but Desktop silently maps hex values to the nearest named color. This tool rejects hex to prevent silent mismatch — use `color` for arbitrary RGB. | [office-js#4638](https://github.com/OfficeDev/office-js/issues/4638) |
 | Paragraph Style | TOC field entries and certain table paragraphs return `style: ""` (empty string) instead of the actual style name. Paragraphs are flagged with `isTocEntry: true` when detected as TOC entries. Use this flag rather than the style field for identification. | [office-js#5934](https://github.com/OfficeDev/office-js/issues/5934) |
 | Mixed Formatting | `word_get_paragraph_by_index` returns `null` for font properties (`bold`, `italic`, `size`, etc.) when the paragraph contains mixed formatting (e.g. partially bold text). This is the Word API's way of indicating "no single value" — treat `null` as "mixed". | [Word.Font docs](https://learn.microsoft.com/en-us/javascript/api/word/word.font?view=word-js-preview) |
