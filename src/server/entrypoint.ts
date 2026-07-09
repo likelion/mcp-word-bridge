@@ -27,12 +27,68 @@ const ENDPOINT = `https://127.0.0.1:${PORT}/mcp`;
 
 // ─── Lock & Daemon Management ───────────────────────────────────────────────────
 
+// An empty lock held for longer than this (starter died before the daemon wrote
+// its PID) is treated as stale. Kept above waitForPort()'s timeout so we never
+// reclaim a lock from a starter that is still legitimately waiting.
+const STALE_LOCK_MS = 30000;
+
+function pidAlive(pid: number): boolean {
+  try {
+    // Signal 0 performs error checking without sending a signal.
+    process.kill(pid, 0);
+    return true;
+  } catch (e) {
+    // ESRCH → no such process. EPERM → process exists but is owned by another
+    // user (still alive). Anything else, assume alive to stay conservative.
+    return (e as NodeJS.ErrnoException).code !== 'ESRCH';
+  }
+}
+
+// Remove the lock if it was orphaned by a dead starter/daemon. Returns true when
+// a stale lock was cleared so the caller can retry acquiring it.
+function reclaimStaleLock(): boolean {
+  let contents: string;
+  let mtimeMs: number;
+  try {
+    contents = fs.readFileSync(LOCK_FILE, 'utf8').trim();
+    mtimeMs = fs.statSync(LOCK_FILE).mtimeMs;
+  } catch {
+    // Lock vanished (e.g. daemon just cleaned up) — treat as reclaimable.
+    return true;
+  }
+
+  const pid = Number(contents);
+  const stale = contents === ''
+    ? (Date.now() - mtimeMs) > STALE_LOCK_MS   // empty: starter never spawned a daemon
+    : !Number.isInteger(pid) || !pidAlive(pid); // PID present: daemon died uncleanly
+
+  if (!stale) return false;
+
+  try {
+    fs.unlinkSync(LOCK_FILE);
+    process.stderr.write(`[mcp-word-bridge] Removed stale lock (${contents || 'empty'}).\n`);
+  } catch {
+    // Someone else may have removed or replaced it concurrently; let the retry decide.
+  }
+  return true;
+}
+
 function tryLock(): boolean {
   try {
     const fd = fs.openSync(LOCK_FILE, fs.constants.O_CREAT | fs.constants.O_EXCL | fs.constants.O_WRONLY);
     fs.closeSync(fd);
     return true;
-  } catch {
+  } catch (e) {
+    if ((e as NodeJS.ErrnoException).code === 'EEXIST' && reclaimStaleLock()) {
+      // Stale lock cleared — attempt to acquire it exactly once more.
+      try {
+        const fd = fs.openSync(LOCK_FILE, fs.constants.O_CREAT | fs.constants.O_EXCL | fs.constants.O_WRONLY);
+        fs.closeSync(fd);
+        return true;
+      } catch {
+        // Lost the race to another starter that grabbed it first — fall through.
+      }
+    }
     return false;
   }
 }

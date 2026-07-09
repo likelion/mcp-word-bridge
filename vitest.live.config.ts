@@ -7,10 +7,8 @@ export default defineConfig({
     globals: true,
     sequence: { concurrent: false },
     fileParallelism: false,
-  },
-  resolve: {
-    alias: {
-      '@shared': '/src/shared',
-    },
+    // 'default' keeps console output; the custom reporter stamps a completion
+    // marker into the Word document after the whole suite finishes.
+    reporters: ['default', './test/live/completion-reporter.ts'],
   },
 });

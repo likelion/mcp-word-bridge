@@ -1,5 +1,5 @@
 import type { CommandHandler } from './index';
-import { checkHexColor, checkIndex } from './document';
+import { checkHexColor, checkIndex, insertCaption } from './document';
 
 declare const Word: any;
 
@@ -19,14 +19,64 @@ export const tableCommands: Record<string, CommandHandler> = {
       }
     }
     const body = ctx.document.body;
-    const table = body.insertTable(p.rows, p.cols, p.location || 'End', p.data || null);
-    if (p.style) table.style = p.style;
+    const loc = p.location || 'End';
+    const hasCaption = p.caption !== undefined && String(p.caption).trim() !== '';
+    const table = body.insertTable(p.rows, p.cols, loc, p.data || null);
     table.headerRowCount = p.headerRowCount ?? 0;
     await ctx.sync();
-    const tableRange = table.getRange('End');
-    tableRange.select();
+    // Apply the optional table style in its own sync so an unknown style name
+    // surfaces as a clear error (mirrors word_set_table_style).
+    if (p.style) {
+      try {
+        table.style = p.style;
+        await ctx.sync();
+      } catch (e: any) {
+        if (e.message?.includes('InvalidArgument'))
+          throw new Error(`Table style not found: "${p.style}". Use a built-in style name like "Grid Table 4 - Accent 1".`);
+        throw e;
+      }
+    }
+    // Table captions go directly above the table by convention. Table.insertParagraph
+    // places the caption paragraph immediately adjacent (no intervening empty line).
+    if (hasCaption) {
+      await insertCaption(ctx, table, { label: 'Table', text: String(p.caption), position: 'Before' });
+    }
+    // Add an empty paragraph after the table so following content is separated from
+    // it, and land the cursor in a further paragraph so the spacer stays empty.
+    const spacer = table.getRange('After').insertParagraph('', 'After');
+    const landing = spacer.insertParagraph('', 'After');
+    landing.getRange('End').select();
     await ctx.sync();
     return { success: true };
+  },
+
+  async deleteTable(ctx, p) {
+    if (typeof p.index !== 'number' || !Number.isInteger(p.index) || p.index < 0)
+      throw new Error('index must be a non-negative integer.');
+    const tables = ctx.document.body.tables;
+    tables.load('rowCount');
+    await ctx.sync();
+    if (p.index >= tables.items.length)
+      throw new Error(`Table index out of range. Document has ${tables.items.length} table(s) (0-indexed).`);
+    const table = tables.items[p.index];
+    // Find a "Caption"-styled paragraph immediately above the table so the whole
+    // captioned unit is removed together (deleteCaption defaults to true).
+    let captionPara: any = null;
+    if (p.deleteCaption !== false) {
+      try {
+        const firstPara = table.getRange('Whole').paragraphs.getFirst();
+        const prev = firstPara.getPreviousOrNullObject();
+        prev.load('style,isNullObject');
+        await ctx.sync();
+        if (!prev.isNullObject && prev.style === 'Caption') captionPara = prev;
+      } catch { /* no accessible preceding paragraph */ }
+    }
+    table.delete();
+    if (captionPara) captionPara.delete();
+    await ctx.sync();
+    const result: any = { success: true };
+    if (captionPara) result.captionDeleted = true;
+    return result;
   },
 
   async getTables(ctx) {

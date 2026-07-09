@@ -4,8 +4,8 @@ import { buildToolRegistry } from '../../src/server/tools';
 describe('Tool Registry', () => {
   const { tools, handlers } = buildToolRegistry();
 
-  test('declares exactly 92 tools', () => {
-    expect(tools.length).toBe(92);
+  test('declares exactly 93 tools', () => {
+    expect(tools.length).toBe(93);
   });
 
   test('every tool has name, description, and schema', () => {
@@ -109,5 +109,29 @@ describe('Tool Registry', () => {
     expect(props).toContain('matchSuffix');
     expect(props).toContain('ignorePunct');
     expect(props).toContain('ignoreSpace');
+  });
+
+  test('word_insert_table exposes optional caption', () => {
+    const t = tools.find(t => t.name === 'word_insert_table')!;
+    expect(t.schema.properties).toHaveProperty('caption');
+    expect(t.schema.required).not.toContain('caption');
+  });
+
+  test('word_insert_image exposes optional caption', () => {
+    const t = tools.find(t => t.name === 'word_insert_image')!;
+    expect(t.schema.properties).toHaveProperty('caption');
+    expect(t.schema.required).not.toContain('caption');
+  });
+
+  test('word_delete_table exists, requires index, and exposes deleteCaption', () => {
+    const t = tools.find(t => t.name === 'word_delete_table')!;
+    expect(t).toBeDefined();
+    expect(t.schema.required).toContain('index');
+    expect(t.schema.properties).toHaveProperty('deleteCaption');
+  });
+
+  test('word_delete_image exposes deleteCaption', () => {
+    const t = tools.find(t => t.name === 'word_delete_image')!;
+    expect(t.schema.properties).toHaveProperty('deleteCaption');
   });
 });

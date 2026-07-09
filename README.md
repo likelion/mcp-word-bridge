@@ -90,7 +90,7 @@ No special setup required. Just add the same config to each MCP host.
 
 Each MCP host spawns `dist/server.js` which acts as a thin proxy. The proxy ensures a shared daemon is running (via file lock), then forwards JSON-RPC over HTTPS. The daemon serializes all tool calls through a single mutex, so concurrent clients never conflict.
 
-## Tools (91)
+## Tools (93)
 
 ### Document
 | Tool | Description |
@@ -140,12 +140,13 @@ Each MCP host spawns `dist/server.js` which acts as a thin proxy. The proxy ensu
 ### Tables
 | Tool | Description |
 |------|-------------|
-| `word_insert_table` | Insert a table with data and optional style |
+| `word_insert_table` | Insert a table with data, optional style, and optional centered caption above it |
 | `word_list_tables` | List table metadata (count, dimensions, style) |
 | `word_get_table_data` | Get cell values from a specific table |
 | `word_set_table_cell` | Set text in a cell |
 | `word_add_table_row` | Add a row with optional values |
 | `word_delete_table_row` | Delete a row by index |
+| `word_delete_table` | Delete an entire table (and its caption if present) |
 | `word_merge_table_cells` | Merge a rectangular range of cells |
 | `word_split_table_cell` | Split a cell into rows/columns |
 | `word_set_table_style` | Apply a built-in table style |
@@ -221,9 +222,9 @@ Each MCP host spawns `dist/server.js` which acts as a thin proxy. The proxy ensu
 ### Images
 | Tool | Description |
 |------|-------------|
-| `word_insert_image` | Insert image from base64 data |
+| `word_insert_image` | Insert a centered image from base64 data, with optional centered caption below it |
 | `word_get_images` | List images with dimensions and alt text |
-| `word_delete_image` | Delete an image by index |
+| `word_delete_image` | Delete an image by index (and its caption if present) |
 
 ### Page Layout & Sections
 | Tool | Description |

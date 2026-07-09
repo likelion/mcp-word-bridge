@@ -53,6 +53,8 @@ const taskpaneConfig = {
   target: 'es2020',
   format: 'iife',
   globalName: 'TaskpaneApp',
+  // Bake the package version into the bundle so the taskpane can display it.
+  define: { __APP_VERSION__: JSON.stringify(pkg.version) },
 };
 
 if (watch) {

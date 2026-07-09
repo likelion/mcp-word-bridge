@@ -11,9 +11,4 @@ export default defineConfig({
       reporter: ['text', 'json', 'lcov'],
     },
   },
-  resolve: {
-    alias: {
-      '@shared': '/src/shared',
-    },
-  },
 });

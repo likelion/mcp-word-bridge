@@ -1,4 +1,5 @@
 import type { CommandHandler } from './index';
+import { insertCaption } from './document';
 
 export const imageCommands: Record<string, CommandHandler> = {
   async insertImage(ctx, p) {
@@ -24,8 +25,27 @@ export const imageCommands: Record<string, CommandHandler> = {
         throw new Error('Invalid image data. Ensure the base64 string is a valid PNG, JPEG, or GIF image.');
       throw e;
     }
-    const imgRange = picture.getRange('End');
-    imgRange.select();
+    // Center the paragraph that holds the image.
+    picture.paragraph.alignment = 'Centered';
+    await ctx.sync();
+    // Figure captions go below the image by convention.
+    let captionPara: any = null;
+    if (p.caption !== undefined && String(p.caption).trim() !== '') {
+      captionPara = await insertCaption(ctx, picture.getRange('End'), { label: 'Figure', text: String(p.caption), position: 'After' });
+    }
+    // Add an empty paragraph after the image (or its caption) so following content
+    // is separated from it, and land the cursor in a further paragraph so the
+    // spacer stays empty.
+    const anchorRange = captionPara ? captionPara.getRange('End') : picture.getRange('End');
+    const spacer = anchorRange.insertParagraph('', 'After');
+    const landing = spacer.insertParagraph('', 'After');
+    // New paragraphs after a caption inherit the Caption style; reset them so
+    // following body text is not styled as a caption.
+    if (captionPara) {
+      spacer.style = 'Normal';
+      landing.style = 'Normal';
+    }
+    landing.getRange('End').select();
     await ctx.sync();
     return { success: true };
   },
@@ -47,8 +67,23 @@ export const imageCommands: Record<string, CommandHandler> = {
     await ctx.sync();
     if (p.index >= pics.items.length)
       throw new Error(`Image index out of range. Document has ${pics.items.length} image(s) (0-indexed).`);
-    pics.items[p.index].delete();
+    const picture = pics.items[p.index];
+    // Find a "Caption"-styled paragraph immediately below the figure so the whole
+    // captioned unit is removed together (deleteCaption defaults to true).
+    let captionPara: any = null;
+    if (p.deleteCaption !== false) {
+      try {
+        const next = picture.paragraph.getNextOrNullObject();
+        next.load('style,isNullObject');
+        await ctx.sync();
+        if (!next.isNullObject && next.style === 'Caption') captionPara = next;
+      } catch { /* no accessible following paragraph */ }
+    }
+    picture.delete();
+    if (captionPara) captionPara.delete();
     await ctx.sync();
-    return { success: true };
+    const result: any = { success: true };
+    if (captionPara) result.captionDeleted = true;
+    return result;
   },
 };

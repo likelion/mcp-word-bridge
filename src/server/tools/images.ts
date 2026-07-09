@@ -11,6 +11,7 @@ export const insertImage = forwardTool(
       width: { type: 'number', description: 'Width in points' },
       height: { type: 'number', description: 'Height in points' },
       altText: { type: 'string', description: 'Alt text for accessibility' },
+      caption: { type: 'string', description: 'Optional caption text. Adds an auto-numbered "Figure N: <caption>" caption paragraph below the image.' },
     },
     required: ['base64'],
   },
@@ -26,10 +27,11 @@ export const getImages = forwardTool(
 
 export const deleteImage = forwardTool(
   'word_delete_image',
-  '[Images] Delete an inline image by its 0-based index.',
+  '[Images] Delete an inline image (figure) by its 0-based index, including its caption paragraph if present.',
   {
     properties: {
       index: { type: 'number', description: 'Image index (0-based)' },
+      deleteCaption: { type: 'boolean', description: 'Also delete the "Caption"-styled paragraph directly below the image. Default: true.' },
     },
     required: ['index'],
   },

@@ -108,8 +108,11 @@ describe('Input Validation', () => {
   test('accept_all_tracked_changes returns count', async () => {
     if (skip()) return;
     const result = await client.call('word_accept_all_tracked_changes');
+    expect(result.success).toBe(true);
     expect(result).toHaveProperty('count');
-    expect(result.count).toBe(0);
+    // acceptAll intentionally does not enumerate items (avoids GeneralException
+    // on complex changes), so count is the -1 "unknown" sentinel.
+    expect(result.count).toBe(-1);
   });
 
   test('insert_content_control without anchorText rejected', async () => {

@@ -1414,6 +1414,7 @@ describe('table tool server-side validators', () => {
   const insertTable = handlers.get('word_insert_table')!;
   const setCell = handlers.get('word_set_table_cell')!;
   const deleteRow = handlers.get('word_delete_table_row')!;
+  const deleteTable = handlers.get('word_delete_table')!;
   const mergeCells = handlers.get('word_merge_table_cells')!;
   const splitCell = handlers.get('word_split_table_cell')!;
   const shading = handlers.get('word_set_table_cell_shading')!;
@@ -1458,6 +1459,19 @@ describe('table tool server-side validators', () => {
   test('deleteTableRow rejects negative indices', async () => {
     await expect(deleteRow({ tableIndex: -1, rowIndex: 0 }, mockBridge()))
       .rejects.toThrow('non-negative integer');
+  });
+
+  test('deleteTable rejects negative index', async () => {
+    await expect(deleteTable({ index: -1 }, mockBridge()))
+      .rejects.toThrow('non-negative integer');
+  });
+
+  test('deleteTable forwards deleteCaption flag to bridge', async () => {
+    const bridge = mockBridge();
+    await deleteTable({ index: 0, deleteCaption: false }, bridge);
+    const call = bridge.calls.find((c: any) => c.action === 'deleteTable');
+    expect(call).toBeDefined();
+    expect(call.params.deleteCaption).toBe(false);
   });
 
   test('mergeCells rejects topRow > bottomRow', async () => {

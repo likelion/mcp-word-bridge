@@ -10,11 +10,17 @@ import type { BridgeRequest, BridgeResponseMessage } from '../shared/protocol';
 
 declare const Office: any;
 declare const Word: any;
+// Injected at build time by esbuild (see scripts/build.mjs).
+declare const __APP_VERSION__: string;
 
 // ─── UI Elements ────────────────────────────────────────────────────────────────
 
 const wordStatus = document.getElementById('word-status')!;
 const wsStatus = document.getElementById('ws-status')!;
+
+// Display the build version in the header and log.
+const titleEl = document.getElementById('app-title');
+if (titleEl) titleEl.textContent = `⚡ MCP Word Bridge v${__APP_VERSION__}`;
 
 // ─── Word Initialization ────────────────────────────────────────────────────────
 
@@ -26,6 +32,7 @@ Office.onReady((info: any) => {
     _wordReady = true;
     wordStatus.textContent = 'Word: connected ✓';
     wordStatus.className = 'status ok';
+    log(`MCP Word Bridge v${__APP_VERSION__}`, 'log-ok');
     log('Office.js ready', 'log-ok');
     connectWebSocket();
   } else {

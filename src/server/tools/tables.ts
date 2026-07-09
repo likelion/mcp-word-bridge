@@ -12,8 +12,9 @@ export const insertTable = forwardTool(
       cols: { type: 'number' },
       data: { type: 'array', items: { type: 'array', items: { type: 'string' } }, description: 'Cell values as array of row arrays' },
       location: { type: 'string', enum: ['Start', 'End'] },
-      style: { type: 'string', description: 'Table style name' },
+      style: { type: 'string', description: 'Built-in Word table style name, e.g. "Grid Table 4 - Accent 1".' },
       headerRowCount: { type: 'number', description: 'Number of header rows (default: 0). Set to 1 to mark the first row as a repeating header.' },
+      caption: { type: 'string', description: 'Optional caption text. Adds an auto-numbered "Table N: <caption>" caption paragraph above the table.' },
     },
     required: ['rows', 'cols'],
   },
@@ -190,6 +191,22 @@ export const setTableCellShading = forwardTool(
   },
 );
 
+export const deleteTable = forwardTool(
+  'word_delete_table',
+  '[Tables] Delete an entire table by its 0-based index, including its caption paragraph if present.',
+  {
+    properties: {
+      index: { type: 'number', description: 'Table index (0-based)' },
+      deleteCaption: { type: 'boolean', description: 'Also delete the "Caption"-styled paragraph directly above the table. Default: true.' },
+    },
+    required: ['index'],
+  },
+  'deleteTable',
+  (args) => {
+    checkNonNegative(args.index, 'index');
+  },
+);
+
 export const tableTools: ToolDefinition[] = [
   insertTable,
   listTables,
@@ -201,4 +218,5 @@ export const tableTools: ToolDefinition[] = [
   splitTableCell,
   setTableStyle,
   setTableCellShading,
+  deleteTable,
 ];

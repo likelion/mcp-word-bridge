@@ -98,6 +98,37 @@ export function checkHighlightColor(color: string): void {
   }
 }
 
+/**
+ * Insert a Word caption paragraph relative to an anchor range.
+ * Produces a "Caption"-styled paragraph reading "<label> <N>: <text>", where
+ * <N> is a 1-based sequence number computed from the count of existing captions
+ * with the same label. Convention: tables are captioned above (position
+ * 'Before'), figures below (position 'After').
+ */
+export async function insertCaption(
+  ctx: any,
+  anchorRange: any,
+  opts: { label: string; text?: string; position: 'Before' | 'After' | 'Start' | 'End' },
+): Promise<any> {
+  // Number this caption by counting existing captions sharing the same label.
+  const existing = ctx.document.body.paragraphs;
+  existing.load('text,style');
+  await ctx.sync();
+  const prefix = opts.label + ' ';
+  let n = 0;
+  for (const item of existing.items) {
+    if (item.style === 'Caption' && (item.text || '').startsWith(prefix)) n++;
+  }
+  const number = n + 1;
+
+  const separator = opts.text && opts.text.trim() !== '' ? ': ' + opts.text : '';
+  const para = anchorRange.insertParagraph(`${opts.label} ${number}${separator}`, opts.position);
+  para.style = 'Caption';
+  para.alignment = 'Centered';
+  await ctx.sync();
+  return para;
+}
+
 export const documentCommands: Record<string, CommandHandler> = {
   async getDocumentText(ctx) {
     const body = ctx.document.body;
